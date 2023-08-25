@@ -232,7 +232,7 @@ func (c *Conn) readAndServe(chain *Chain, timeout time.Duration) Message {
 		case *Ping:
 			c.Write(&Pong{})
 		case *GetBlockHeaders:
-			headers, err := chain.agrodeaders(msg)
+			headers, err := chain.GetHeaders(msg)
 			if err != nil {
 				return errorf("could not get headers for inbound header request: %v", err)
 			}
