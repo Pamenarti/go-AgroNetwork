@@ -2,13 +2,13 @@
 # with Go source code. If you know what GOPATH is then you probably
 # don't need to bother with make.
 
-.PHONY: agro android ios evm all test clean
+.PHONY: agrod android ios evm all test clean
 
 GOBIN = ./build/bin
 GO ?= latest
-GORUN = env GO111MODULE=on go run
+GORUN = go run
 
-agro:
+agrod:
 	$(GORUN) build/ci.go install ./cmd/agrod
 	@echo "Done building."
 	@echo "Run \"$(GOBIN)/agrod\" to launch agrod."
@@ -23,7 +23,7 @@ lint: ## Run linters.
 	$(GORUN) build/ci.go lint
 
 clean:
-	env GO111MODULE=on go clean -cache
+	go clean -cache
 	rm -fr build/_workspace/pkg/ $(GOBIN)/*
 
 # The devtools target installs tools required for 'go generate'.
