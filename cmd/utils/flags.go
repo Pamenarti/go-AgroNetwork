@@ -48,7 +48,7 @@ import (
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	"github.com/ethereum/go-ethereum/eth"
-	ethcatalyst "github.com/ethereum/go-ethereum/eth/catalyst"
+	"github.com/ethereum/go-ethereum/eth/catalyst"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/eth/filters"
@@ -61,7 +61,6 @@ import (
 	"github.com/ethereum/go-ethereum/internal/ethapi"
 	"github.com/ethereum/go-ethereum/internal/flags"
 	"github.com/ethereum/go-ethereum/les"
-	lescatalyst "github.com/ethereum/go-ethereum/les/catalyst"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/metrics/exp"
@@ -75,6 +74,9 @@ import (
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/ethereum/go-ethereum/trie"
+	"github.com/ethereum/go-ethereum/trie/triedb/hashdb"
+	"github.com/ethereum/go-ethereum/trie/triedb/pathdb"
 	pcsclite "github.com/gballet/go-libpcsclite"
 	gopsutil "github.com/shirou/gopsutil/mem"
 	"github.com/urfave/cli/v2"
@@ -219,28 +221,10 @@ var (
 	}
 
 	defaultSyncMode = ethconfig.Defaults.SyncMode
-	SyncModeFlag    = &flags.TextMarshalerFlag{
-		Name:     "syncmode",
-		Usage:    `Blockchain sync mode ("snap", "full" or "light")`,
-		Value:    &defaultSyncMode,
-		Category: flags.EthCategory,
-	}
-	GCModeFlag = &cli.StringFlag{
-		Name:     "gcmode",
-		Usage:    `Blockchain garbage collection mode ("full", "archive")`,
-		Value:    "full",
-		Category: flags.EthCategory,
-	}
-	SnapshotFlag = &cli.BoolFlag{
+	SnapshotFlag    = &cli.BoolFlag{
 		Name:     "snapshot",
 		Usage:    `Enables snapshot-database mode (default = enable)`,
 		Value:    true,
-		Category: flags.EthCategory,
-	}
-	TxLookupLimitFlag = &cli.Uint64Flag{
-		Name:     "txlookuplimit",
-		Usage:    "Number of recent blocks to maintain transactions index for (default = about one year, 0 = entire chain)",
-		Value:    ethconfig.Defaults.TxLookupLimit,
 		Category: flags.EthCategory,
 	}
 	LightKDFFlag = &cli.BoolFlag{
@@ -269,6 +253,36 @@ var (
 		Usage:    "Manually specify the Verkle fork timestamp, overriding the bundled setting",
 		Category: flags.EthCategory,
 	}
+	SyncModeFlag = &flags.TextMarshalerFlag{
+		Name:     "syncmode",
+		Usage:    `Blockchain sync mode ("snap", "full" or "light")`,
+		Value:    &defaultSyncMode,
+		Category: flags.StateCategory,
+	}
+	GCModeFlag = &cli.StringFlag{
+		Name:     "gcmode",
+		Usage:    `Blockchain garbage collection mode, only relevant in state.scheme=hash ("full", "archive")`,
+		Value:    "full",
+		Category: flags.StateCategory,
+	}
+	StateSchemeFlag = &cli.StringFlag{
+		Name:     "state.scheme",
+		Usage:    "Scheme to use for storing ethereum state ('hash' or 'path')",
+		Value:    rawdb.HashScheme,
+		Category: flags.StateCategory,
+	}
+	StateHistoryFlag = &cli.Uint64Flag{
+		Name:     "history.state",
+		Usage:    "Number of recent blocks to retain state history for (default = 90,000 blocks, 0 = entire chain)",
+		Value:    ethconfig.Defaults.StateHistory,
+		Category: flags.StateCategory,
+	}
+	TransactionHistoryFlag = &cli.Uint64Flag{
+		Name:     "history.transactions",
+		Usage:    "Number of recent blocks to maintain transactions index for (default = about one year, 0 = entire chain)",
+		Value:    ethconfig.Defaults.TransactionHistory,
+		Category: flags.StateCategory,
+	}
 	// Light server and client settings
 	LightServeFlag = &cli.IntFlag{
 		Name:     "light.serve",
@@ -292,23 +306,6 @@ var (
 		Name:     "light.maxpeers",
 		Usage:    "Maximum number of light clients to serve, or light servers to attach to",
 		Value:    ethconfig.Defaults.LightPeers,
-		Category: flags.LightCategory,
-	}
-	UltraLightServersFlag = &cli.StringFlag{
-		Name:     "ulc.servers",
-		Usage:    "List of trusted ultra-light servers",
-		Value:    strings.Join(ethconfig.Defaults.UltraLightServers, ","),
-		Category: flags.LightCategory,
-	}
-	UltraLightFractionFlag = &cli.IntFlag{
-		Name:     "ulc.fraction",
-		Usage:    "Minimum % of trusted ultra-light servers required to announce a new head",
-		Value:    ethconfig.Defaults.UltraLightFraction,
-		Category: flags.LightCategory,
-	}
-	UltraLightOnlyAnnounceFlag = &cli.BoolFlag{
-		Name:     "ulc.onlyannounce",
-		Usage:    "Ultra light server sends announcements only",
 		Category: flags.LightCategory,
 	}
 	LightNoPruneFlag = &cli.BoolFlag{
@@ -385,6 +382,25 @@ var (
 		Usage:    "Maximum amount of time non-executable transaction are queued",
 		Value:    ethconfig.Defaults.TxPool.Lifetime,
 		Category: flags.TxPoolCategory,
+	}
+	// Blob transaction pool settings
+	BlobPoolDataDirFlag = &cli.StringFlag{
+		Name:     "blobpool.datadir",
+		Usage:    "Data directory to store blob transactions in",
+		Value:    ethconfig.Defaults.BlobPool.Datadir,
+		Category: flags.BlobPoolCategory,
+	}
+	BlobPoolDataCapFlag = &cli.Uint64Flag{
+		Name:     "blobpool.datacap",
+		Usage:    "Disk space to allocate for pending blob transactions (soft limit)",
+		Value:    ethconfig.Defaults.BlobPool.Datacap,
+		Category: flags.BlobPoolCategory,
+	}
+	BlobPoolPriceBumpFlag = &cli.Uint64Flag{
+		Name:     "blobpool.pricebump",
+		Usage:    "Price bump percentage to replace an already existing blob transaction",
+		Value:    ethconfig.Defaults.BlobPool.PriceBump,
+		Category: flags.BlobPoolCategory,
 	}
 	// Performance tuning settings
 	CacheFlag = &cli.IntFlag{
@@ -1211,19 +1227,6 @@ func setLes(ctx *cli.Context, cfg *ethconfig.Config) {
 	if ctx.IsSet(LightMaxPeersFlag.Name) {
 		cfg.LightPeers = ctx.Int(LightMaxPeersFlag.Name)
 	}
-	if ctx.IsSet(UltraLightServersFlag.Name) {
-		cfg.UltraLightServers = strings.Split(ctx.String(UltraLightServersFlag.Name), ",")
-	}
-	if ctx.IsSet(UltraLightFractionFlag.Name) {
-		cfg.UltraLightFraction = ctx.Int(UltraLightFractionFlag.Name)
-	}
-	if cfg.UltraLightFraction <= 0 && cfg.UltraLightFraction > 100 {
-		log.Error("Ultra light fraction is invalid", "had", cfg.UltraLightFraction, "updated", ethconfig.Defaults.UltraLightFraction)
-		cfg.UltraLightFraction = ethconfig.Defaults.UltraLightFraction
-	}
-	if ctx.IsSet(UltraLightOnlyAnnounceFlag.Name) {
-		cfg.UltraLightOnlyAnnounce = ctx.Bool(UltraLightOnlyAnnounceFlag.Name)
-	}
 	if ctx.IsSet(LightNoPruneFlag.Name) {
 		cfg.LightNoPrune = ctx.Bool(LightNoPruneFlag.Name)
 	}
@@ -1636,13 +1639,8 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 	CheckExclusive(ctx, MainnetFlag, DeveloperFlag, GoerliFlag, SepoliaFlag)
 	CheckExclusive(ctx, LightServeFlag, SyncModeFlag, "light")
 	CheckExclusive(ctx, DeveloperFlag, ExternalSignerFlag) // Can't use both ephemeral unlocked and external signer
-	if ctx.String(GCModeFlag.Name) == "archive" && ctx.Uint64(TxLookupLimitFlag.Name) != 0 {
-		ctx.Set(TxLookupLimitFlag.Name, "0")
-		log.Warn("Disable transaction unindexing for archive node")
-	}
-	if ctx.IsSet(LightServeFlag.Name) && ctx.Uint64(TxLookupLimitFlag.Name) != 0 {
-		log.Warn("LES server cannot serve old transaction status and cannot connect below les/4 protocol version if transaction lookup index is limited")
-	}
+
+	// Set configurations from CLI flags
 	setEtherbase(ctx, cfg)
 	setGPO(ctx, &cfg.GPO, ctx.String(SyncModeFlag.Name) == "light")
 	setTxPool(ctx, &cfg.TxPool)
@@ -1699,8 +1697,36 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		cfg.Preimages = true
 		log.Info("Enabling recording of key preimages since archive mode is used")
 	}
-	if ctx.IsSet(TxLookupLimitFlag.Name) {
-		cfg.TxLookupLimit = ctx.Uint64(TxLookupLimitFlag.Name)
+	if ctx.IsSet(StateHistoryFlag.Name) {
+		cfg.StateHistory = ctx.Uint64(StateHistoryFlag.Name)
+	}
+	// Parse state scheme, abort the process if it's not compatible.
+	chaindb := tryMakeReadOnlyDatabase(ctx, stack)
+	scheme, err := ParseStateScheme(ctx, chaindb)
+	chaindb.Close()
+	if err != nil {
+		Fatalf("%v", err)
+	}
+	cfg.StateScheme = scheme
+
+	// Parse transaction history flag, if user is still using legacy config
+	// file with 'TxLookupLimit' configured, copy the value to 'TransactionHistory'.
+	if cfg.TransactionHistory == ethconfig.Defaults.TransactionHistory && cfg.TxLookupLimit != ethconfig.Defaults.TxLookupLimit {
+		log.Warn("The config option 'TxLookupLimit' is deprecated and will be removed, please use 'TransactionHistory'")
+		cfg.TransactionHistory = cfg.TxLookupLimit
+	}
+	if ctx.IsSet(TransactionHistoryFlag.Name) {
+		cfg.TransactionHistory = ctx.Uint64(TransactionHistoryFlag.Name)
+	} else if ctx.IsSet(TxLookupLimitFlag.Name) {
+		log.Warn("The flag --txlookuplimit is deprecated and will be removed, please use --history.transactions")
+		cfg.TransactionHistory = ctx.Uint64(TxLookupLimitFlag.Name)
+	}
+	if ctx.String(GCModeFlag.Name) == "archive" && cfg.TransactionHistory != 0 {
+		cfg.TransactionHistory = 0
+		log.Warn("Disabled transaction unindexing for archive node")
+	}
+	if ctx.IsSet(LightServeFlag.Name) && cfg.TransactionHistory != 0 {
+		log.Warn("LES server cannot serve old transaction status and cannot connect below les/4 protocol version if transaction lookup index is limited")
 	}
 	if ctx.IsSet(CacheFlag.Name) || ctx.IsSet(CacheTrieFlag.Name) {
 		cfg.TrieCleanCache = ctx.Int(CacheFlag.Name) * ctx.Int(CacheTrieFlag.Name) / 100
@@ -1826,15 +1852,7 @@ func SetEthConfig(ctx *cli.Context, stack *node.Node, cfg *ethconfig.Config) {
 		// Create a new developer genesis block or reuse existing one
 		cfg.Genesis = core.DeveloperGenesisBlock(ctx.Uint64(DeveloperGasLimitFlag.Name), developer.Address)
 		if ctx.IsSet(DataDirFlag.Name) {
-			// If datadir doesn't exist we need to open db in write-mode
-			// so leveldb can create files.
-			readonly := true
-			if !common.FileExist(stack.ResolvePath("chaindata")) {
-				readonly = false
-			}
-			// Check if we have an already initialized chain and fall back to
-			// that if so. Otherwise we need to generate a new genesis spec.
-			chaindb := MakeChainDatabase(ctx, stack, readonly)
+			chaindb := tryMakeReadOnlyDatabase(ctx, stack)
 			if rawdb.ReadCanonicalHash(chaindb, 0) != (common.Hash{}) {
 				cfg.Genesis = nil // fallback to db content
 			}
@@ -1884,9 +1902,6 @@ func RegisterEthService(stack *node.Node, cfg *ethconfig.Config) (ethapi.Backend
 			Fatalf("Failed to register the Ethereum service: %v", err)
 		}
 		stack.RegisterAPIs(tracers.APIs(backend.ApiBackend))
-		if err := lescatalyst.Register(stack, backend); err != nil {
-			Fatalf("Failed to register the Engine API service: %v", err)
-		}
 		return backend.ApiBackend, nil
 	}
 	backend, err := eth.New(stack, cfg)
@@ -1945,7 +1960,7 @@ func RegisterFullSyncTester(stack *node.Node, eth *eth.Ethereum, path string) {
 	if err := rlp.DecodeBytes(rlpBlob, &block); err != nil {
 		Fatalf("Failed to decode block: %v", err)
 	}
-	ethcatalyst.RegisterFullSyncTester(stack, eth, &block)
+	catalyst.RegisterFullSyncTester(stack, eth, &block)
 	log.Info("Registered full-sync tester", "number", block.NumberU64(), "hash", block.Hash())
 }
 
@@ -2055,6 +2070,18 @@ func MakeChainDatabase(ctx *cli.Context, stack *node.Node, readonly bool) ethdb.
 	return chainDb
 }
 
+// tryMakeReadOnlyDatabase try to open the chain database in read-only mode,
+// or fallback to write mode if the database is not initialized.
+func tryMakeReadOnlyDatabase(ctx *cli.Context, stack *node.Node) ethdb.Database {
+	// If the database doesn't exist we need to open it in write-mode to allow
+	// the engine to create files.
+	readonly := true
+	if rawdb.PreexistingDatabase(stack.ResolvePath("chaindata")) == "" {
+		readonly = false
+	}
+	return MakeChainDatabase(ctx, stack, readonly)
+}
+
 func IsNetworkPreset(ctx *cli.Context) bool {
 	for _, flag := range NetworkFlags {
 		bFlag, _ := flag.(*cli.BoolFlag)
@@ -2121,6 +2148,10 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readonly bool) (*core.BlockCh
 	if gcmode := ctx.String(GCModeFlag.Name); gcmode != "full" && gcmode != "archive" {
 		Fatalf("--%s must be either 'full' or 'archive'", GCModeFlag.Name)
 	}
+	scheme, err := ParseStateScheme(ctx, chainDb)
+	if err != nil {
+		Fatalf("%v", err)
+	}
 	cache := &core.CacheConfig{
 		TrieCleanLimit:      ethconfig.Defaults.TrieCleanCache,
 		TrieCleanNoPrefetch: ctx.Bool(CacheNoPrefetchFlag.Name),
@@ -2129,6 +2160,8 @@ func MakeChain(ctx *cli.Context, stack *node.Node, readonly bool) (*core.BlockCh
 		TrieTimeLimit:       ethconfig.Defaults.TrieTimeout,
 		SnapshotLimit:       ethconfig.Defaults.SnapshotCache,
 		Preimages:           ctx.Bool(CachePreimagesFlag.Name),
+		StateScheme:         scheme,
+		StateHistory:        ctx.Uint64(StateHistoryFlag.Name),
 	}
 	if cache.TrieDirtyDisabled && !cache.Preimages {
 		cache.Preimages = true
@@ -2172,4 +2205,63 @@ func MakeConsolePreloads(ctx *cli.Context) []string {
 		preloads = append(preloads, strings.TrimSpace(file))
 	}
 	return preloads
+}
+
+// ParseStateScheme resolves scheme identifier from CLI flag. If the provided
+// state scheme is not compatible with the one of persistent scheme, an error
+// will be returned.
+//
+//   - none: use the scheme consistent with persistent state, or fallback
+//     to hash-based scheme if state is empty.
+//   - hash: use hash-based scheme or error out if not compatible with
+//     persistent state scheme.
+//   - path: use path-based scheme or error out if not compatible with
+//     persistent state scheme.
+func ParseStateScheme(ctx *cli.Context, disk ethdb.Database) (string, error) {
+	// If state scheme is not specified, use the scheme consistent
+	// with persistent state, or fallback to hash mode if database
+	// is empty.
+	stored := rawdb.ReadStateScheme(disk)
+	if !ctx.IsSet(StateSchemeFlag.Name) {
+		if stored == "" {
+			// use default scheme for empty database, flip it when
+			// path mode is chosen as default
+			log.Info("State schema set to default", "scheme", "hash")
+			return rawdb.HashScheme, nil
+		}
+		log.Info("State scheme set to already existing", "scheme", stored)
+		return stored, nil // reuse scheme of persistent scheme
+	}
+	// If state scheme is specified, ensure it's compatible with
+	// persistent state.
+	scheme := ctx.String(StateSchemeFlag.Name)
+	if stored == "" || scheme == stored {
+		log.Info("State scheme set by user", "scheme", scheme)
+		return scheme, nil
+	}
+	return "", fmt.Errorf("incompatible state scheme, stored: %s, provided: %s", stored, scheme)
+}
+
+// MakeTrieDatabase constructs a trie database based on the configured scheme.
+func MakeTrieDatabase(ctx *cli.Context, disk ethdb.Database, preimage bool, readOnly bool) *trie.Database {
+	config := &trie.Config{
+		Preimages: preimage,
+	}
+	scheme, err := ParseStateScheme(ctx, disk)
+	if err != nil {
+		Fatalf("%v", err)
+	}
+	if scheme == rawdb.HashScheme {
+		// Read-only mode is not implemented in hash mode,
+		// ignore the parameter silently. TODO(rjl493456442)
+		// please config it if read mode is implemented.
+		config.HashDB = hashdb.Defaults
+		return trie.NewDatabase(disk, config)
+	}
+	if readOnly {
+		config.PathDB = pathdb.ReadOnly
+	} else {
+		config.PathDB = pathdb.Defaults
+	}
+	return trie.NewDatabase(disk, config)
 }

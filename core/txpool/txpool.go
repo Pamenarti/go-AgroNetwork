@@ -17,13 +17,17 @@
 package txpool
 
 import (
+	"errors"
 	"fmt"
 	"math/big"
+	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/event"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/metrics"
 )
 
 // TxStatus is the current status of a transaction as seen by the pool.
@@ -34,6 +38,15 @@ const (
 	TxStatusQueued
 	TxStatusPending
 	TxStatusIncluded
+)
+
+var (
+	// reservationsGaugeName is the prefix of a per-subpool address reservation
+	// metric.
+	//
+	// This is mostly a sanity metric to ensure there's no bug that would make
+	// some subpool hog all the reservations due to mis-accounting.
+	reservationsGaugeName = "txpool/reservations"
 )
 
 // BlockChain defines the minimal set of methods needed to back a tx pool with
@@ -52,9 +65,13 @@ type BlockChain interface {
 // They exit the pool when they are included in the blockchain or evicted due to
 // resource constraints.
 type TxPool struct {
-	subpools []SubPool               // List of subpools for specialized transaction handling
-	subs     event.SubscriptionScope // Subscription scope to unscubscribe all on shutdown
-	quit     chan chan error         // Quit channel to tear down the head updater
+	subpools []SubPool // List of subpools for specialized transaction handling
+
+	reservations map[common.Address]SubPool // Map with the account to pool reservations
+	reserveLock  sync.Mutex                 // Lock protecting the account reservations
+
+	subs event.SubscriptionScope // Subscription scope to unscubscribe all on shutdown
+	quit chan chan error         // Quit channel to tear down the head updater
 }
 
 // New creates a new transaction pool to gather, sort and filter inbound
@@ -66,11 +83,12 @@ func New(gasTip *big.Int, chain BlockChain, subpools []SubPool) (*TxPool, error)
 	head := chain.CurrentBlock()
 
 	pool := &TxPool{
-		subpools: subpools,
-		quit:     make(chan chan error),
+		subpools:     subpools,
+		reservations: make(map[common.Address]SubPool),
+		quit:         make(chan chan error),
 	}
 	for i, subpool := range subpools {
-		if err := subpool.Init(gasTip, head); err != nil {
+		if err := subpool.Init(gasTip, head, pool.reserver(i, subpool)); err != nil {
 			for j := i - 1; j >= 0; j-- {
 				subpools[j].Close()
 			}
@@ -79,6 +97,52 @@ func New(gasTip *big.Int, chain BlockChain, subpools []SubPool) (*TxPool, error)
 	}
 	go pool.loop(head, chain)
 	return pool, nil
+}
+
+// reserver is a method to create an address reservation callback to exclusively
+// assign/deassign addresses to/from subpools. This can ensure that at any point
+// in time, only a single subpool is able to manage an account, avoiding cross
+// subpool eviction issues and nonce conflicts.
+func (p *TxPool) reserver(id int, subpool SubPool) AddressReserver {
+	return func(addr common.Address, reserve bool) error {
+		p.reserveLock.Lock()
+		defer p.reserveLock.Unlock()
+
+		owner, exists := p.reservations[addr]
+		if reserve {
+			// Double reservations are forbidden even from the same pool to
+			// avoid subtle bugs in the long term.
+			if exists {
+				if owner == subpool {
+					log.Error("pool attempted to reserve already-owned address", "address", addr)
+					return nil // Ignore fault to give the pool a chance to recover while the bug gets fixed
+				}
+				return errors.New("address already reserved")
+			}
+			p.reservations[addr] = subpool
+			if metrics.Enabled {
+				m := fmt.Sprintf("%s/%d", reservationsGaugeName, id)
+				metrics.GetOrRegisterGauge(m, nil).Inc(1)
+			}
+			return nil
+		}
+		// Ensure subpools only attempt to unreserve their own owned addresses,
+		// otherwise flag as a programming error.
+		if !exists {
+			log.Error("pool attempted to unreserve non-reserved address", "address", addr)
+			return errors.New("address not reserved")
+		}
+		if subpool != owner {
+			log.Error("pool attempted to unreserve non-owned address", "address", addr)
+			return errors.New("address not owned")
+		}
+		delete(p.reservations, addr)
+		if metrics.Enabled {
+			m := fmt.Sprintf("%s/%d", reservationsGaugeName, id)
+			metrics.GetOrRegisterGauge(m, nil).Dec(1)
+		}
+		return nil
+	}
 }
 
 // Close terminates the transaction pool and all its subpools.
@@ -185,7 +249,7 @@ func (p *TxPool) Has(hash common.Hash) bool {
 }
 
 // Get returns a transaction if it is contained in the pool, or nil otherwise.
-func (p *TxPool) Get(hash common.Hash) *Transaction {
+func (p *TxPool) Get(hash common.Hash) *types.Transaction {
 	for _, subpool := range p.subpools {
 		if tx := subpool.Get(hash); tx != nil {
 			return tx
@@ -197,14 +261,14 @@ func (p *TxPool) Get(hash common.Hash) *Transaction {
 // Add enqueues a batch of transactions into the pool if they are valid. Due
 // to the large transaction churn, add may postpone fully integrating the tx
 // to a later point to batch multiple ones together.
-func (p *TxPool) Add(txs []*Transaction, local bool, sync bool) []error {
+func (p *TxPool) Add(txs []*types.Transaction, local bool, sync bool) []error {
 	// Split the input transactions between the subpools. It shouldn't really
 	// happen that we receive merged batches, but better graceful than strange
 	// errors.
 	//
 	// We also need to track how the transactions were split across the subpools,
 	// so we can piece back the returned errors into the original order.
-	txsets := make([][]*Transaction, len(p.subpools))
+	txsets := make([][]*types.Transaction, len(p.subpools))
 	splits := make([]int, len(txs))
 
 	for i, tx := range txs {
@@ -213,7 +277,7 @@ func (p *TxPool) Add(txs []*Transaction, local bool, sync bool) []error {
 
 		// Try to find a subpool that accepts the transaction
 		for j, subpool := range p.subpools {
-			if subpool.Filter(tx.Tx) {
+			if subpool.Filter(tx) {
 				txsets[j] = append(txsets[j], tx)
 				splits[i] = j
 				break
@@ -242,8 +306,8 @@ func (p *TxPool) Add(txs []*Transaction, local bool, sync bool) []error {
 
 // Pending retrieves all currently processable transactions, grouped by origin
 // account and sorted by nonce.
-func (p *TxPool) Pending(enforceTips bool) map[common.Address][]*types.Transaction {
-	txs := make(map[common.Address][]*types.Transaction)
+func (p *TxPool) Pending(enforceTips bool) map[common.Address][]*LazyTransaction {
+	txs := make(map[common.Address][]*LazyTransaction)
 	for _, subpool := range p.subpools {
 		for addr, set := range subpool.Pending(enforceTips) {
 			txs[addr] = set

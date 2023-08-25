@@ -124,7 +124,7 @@ func (s *Suite) TestGetBlockHeaders(t *utesting.T) {
 		t.Fatalf("could not get block headers: %v", err)
 	}
 	// check for correct headers
-	expected, err := s.chain.GetHeaders(req)
+	expected, err := s.chain.agrodeaders(req)
 	if err != nil {
 		t.Fatalf("failed to get headers for given request: %v", err)
 	}
@@ -193,11 +193,11 @@ func (s *Suite) TestSimultaneousRequests(t *utesting.T) {
 	}
 
 	// check received headers for accuracy
-	expected1, err := s.chain.GetHeaders(req1)
+	expected1, err := s.chain.agrodeaders(req1)
 	if err != nil {
 		t.Fatalf("failed to get expected headers for request 1: %v", err)
 	}
-	expected2, err := s.chain.GetHeaders(req2)
+	expected2, err := s.chain.agrodeaders(req2)
 	if err != nil {
 		t.Fatalf("failed to get expected headers for request 2: %v", err)
 	}
@@ -262,11 +262,11 @@ func (s *Suite) TestSameRequestID(t *utesting.T) {
 	}
 
 	// check if headers match
-	expected1, err := s.chain.GetHeaders(request1)
+	expected1, err := s.chain.agrodeaders(request1)
 	if err != nil {
 		t.Fatalf("failed to get expected block headers: %v", err)
 	}
-	expected2, err := s.chain.GetHeaders(request2)
+	expected2, err := s.chain.agrodeaders(request2)
 	if err != nil {
 		t.Fatalf("failed to get expected block headers: %v", err)
 	}
@@ -299,7 +299,7 @@ func (s *Suite) TestZeroRequestID(t *utesting.T) {
 	if err != nil {
 		t.Fatalf("failed to get block headers: %v", err)
 	}
-	expected, err := s.chain.GetHeaders(req)
+	expected, err := s.chain.agrodeaders(req)
 	if err != nil {
 		t.Fatalf("failed to get expected block headers: %v", err)
 	}
