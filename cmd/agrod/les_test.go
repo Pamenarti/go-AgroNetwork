@@ -109,14 +109,14 @@ func ipcEndpoint(ipcPath, datadir string) string {
 // the pipe filename instead of folder.
 var nextIPC atomic.Uint32
 
-func startagrodWithIpc(t *testing.T, name string, args ...string) *agrodrpc {
+func startGethWithIpc(t *testing.T, name string, args ...string) *agrodrpc {
 	ipcName := fmt.Sprintf("agrod-%d.ipc", nextIPC.Add(1))
 	args = append([]string{"--networkid=42", "--port=0", "--authrpc.port", "0", "--ipcpath", ipcName}, args...)
 	t.Logf("Starting %v with rpc: %v", name, args)
 
 	g := &agrodrpc{
 		name: name,
-		agrod: runagrod(t, args...),
+		agrod: runGeth(t, args...),
 	}
 	ipcpath := ipcEndpoint(ipcName, g.agrod.Datadir)
 	// We can't know exactly how long agrod will take to start, so we try 10
@@ -132,27 +132,27 @@ func startagrodWithIpc(t *testing.T, name string, args ...string) *agrodrpc {
 	return nil
 }
 
-func initagrod(t *testing.T) string {
+func initGeth(t *testing.T) string {
 	args := []string{"--networkid=42", "init", "./testdata/clique.json"}
 	t.Logf("Initializing agrod: %v ", args)
-	g := runagrod(t, args...)
+	g := runGeth(t, args...)
 	datadir := g.Datadir
 	g.WaitExit()
 	return datadir
 }
 
 func startLightServer(t *testing.T) *agrodrpc {
-	datadir := initagrod(t)
+	datadir := initGeth(t)
 	t.Logf("Importing keys to agrod")
-	runagrod(t, "account", "import", "--datadir", datadir, "--password", "./testdata/password.txt", "--lightkdf", "./testdata/key.prv").WaitExit()
+	runGeth(t, "account", "import", "--datadir", datadir, "--password", "./testdata/password.txt", "--lightkdf", "./testdata/key.prv").WaitExit()
 	account := "0x02f0d131f1f97aef08aec6e3291b957d9efe7105"
-	server := startagrodWithIpc(t, "lightserver", "--allow-insecure-unlock", "--datadir", datadir, "--password", "./testdata/password.txt", "--unlock", account, "--miner.etherbase=0x02f0d131f1f97aef08aec6e3291b957d9efe7105", "--mine", "--light.serve=100", "--light.maxpeers=1", "--discv4=false", "--nat=extip:127.0.0.1", "--verbosity=4")
+	server := startGethWithIpc(t, "lightserver", "--allow-insecure-unlock", "--datadir", datadir, "--password", "./testdata/password.txt", "--unlock", account, "--miner.etherbase=0x02f0d131f1f97aef08aec6e3291b957d9efe7105", "--mine", "--light.serve=100", "--light.maxpeers=1", "--discv4=false", "--nat=extip:127.0.0.1", "--verbosity=4")
 	return server
 }
 
 func startClient(t *testing.T, name string) *agrodrpc {
-	datadir := initagrod(t)
-	return startagrodWithIpc(t, name, "--datadir", datadir, "--discv4=false", "--syncmode=light", "--nat=extip:127.0.0.1", "--verbosity=4")
+	datadir := initGeth(t)
+	return startGethWithIpc(t, name, "--datadir", datadir, "--discv4=false", "--syncmode=light", "--nat=extip:127.0.0.1", "--verbosity=4")
 }
 
 func TestPriorityClient(t *testing.T) {

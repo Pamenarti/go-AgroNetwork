@@ -37,14 +37,14 @@ const (
 // spawns agrod with the given command line args, using a set of flags to minimise
 // memory and disk IO. If the args don't set --datadir, the
 // child g gets a temporary data directory.
-func runMinimalagrod(t *testing.T, args ...string) *testagrod {
+func runMinimalGeth(t *testing.T, args ...string) *testagrod {
 	// --goerli to make the 'writing genesis to disk' faster (no accounts)
 	// --networkid=1337 to avoid cache bump
 	// --syncmode=full to avoid allocating fast sync bloom
 	allArgs := []string{"--goerli", "--networkid", "1337", "--authrpc.port", "0", "--syncmode=full", "--port", "0",
 		"--nat", "none", "--nodiscover", "--maxpeers", "0", "--cache", "64",
 		"--datadir.minfreedisk", "0"}
-	return runagrod(t, append(allArgs, args...)...)
+	return runGeth(t, append(allArgs, args...)...)
 }
 
 // Tests that a node embedded within a console can be started up properly and
@@ -53,7 +53,7 @@ func TestConsoleWelcome(t *testing.T) {
 	coinbase := "0x8605cdbbdb6d264aa742e77020dcbc58fcdce182"
 
 	// Start a agrod console, make sure it's cleaned up and terminate the console
-	agrod := runMinimalagrod(t, "--miner.etherbase", coinbase, "console")
+	agrod := runMinimalGeth(t, "--miner.etherbase", coinbase, "console")
 
 	// Gather all the infos the welcome message needs to contain
 	agrod.SetTemplateFunc("goos", func() string { return runtime.GOOS })
@@ -67,9 +67,9 @@ func TestConsoleWelcome(t *testing.T) {
 
 	// Verify the actual welcome message to the required template
 	agrod.Expect(`
-Welcome to the agrod JavaScript console!
+Welcome to the Geth JavaScript console!
 
-instance: agrod/v{{agrodver}}/{{goos}}-{{goarch}}/{{gover}}
+instance: Geth/v{{agrodver}}/{{goos}}-{{goarch}}/{{gover}}
 coinbase: {{.Etherbase}}
 at block: 0 ({{niltime}})
  datadir: {{.Datadir}}
@@ -98,7 +98,7 @@ func TestAttachWelcome(t *testing.T) {
 	p := trulyRandInt(1024, 65533) // Yeah, sometimes this will fail, sorry :P
 	httpPort = strconv.Itoa(p)
 	wsPort = strconv.Itoa(p + 1)
-	agrod := runMinimalagrod(t, "--miner.etherbase", "0x8605cdbbdb6d264aa742e77020dcbc58fcdce182",
+	agrod := runMinimalGeth(t, "--miner.etherbase", "0x8605cdbbdb6d264aa742e77020dcbc58fcdce182",
 		"--ipcpath", ipc,
 		"--http", "--http.port", httpPort,
 		"--ws", "--ws.port", wsPort)
@@ -121,7 +121,7 @@ func TestAttachWelcome(t *testing.T) {
 
 func testAttachWelcome(t *testing.T, agrod *testagrod, endpoint, apis string) {
 	// Attach to a running agrod node and terminate immediately
-	attach := runagrod(t, "attach", endpoint)
+	attach := runGeth(t, "attach", endpoint)
 	defer attach.ExpectExit()
 	attach.CloseStdin()
 
@@ -140,9 +140,9 @@ func testAttachWelcome(t *testing.T, agrod *testagrod, endpoint, apis string) {
 
 	// Verify the actual welcome message to the required template
 	attach.Expect(`
-Welcome to the agrod JavaScript console!
+Welcome to the Geth JavaScript console!
 
-instance: agrod/v{{agrodver}}/{{goos}}-{{goarch}}/{{gover}}
+instance: Geth/v{{agrodver}}/{{goos}}-{{goarch}}/{{gover}}
 coinbase: {{etherbase}}
 at block: 0 ({{niltime}}){{if ipc}}
  datadir: {{datadir}}{{end}}

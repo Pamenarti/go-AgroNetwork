@@ -33,9 +33,6 @@ type Config struct {
 	Preimages bool           // Flag whether the preimage of node key is recorded
 	HashDB    *hashdb.Config // Configs for hash-based scheme
 	PathDB    *pathdb.Config // Configs for experimental path-based scheme
-
-	// Testing hooks
-	OnCommit func(states *triestate.Set) // Hook invoked when commit is performed
 }
 
 // HashDefaults represents a config for using hash-based scheme with
@@ -88,20 +85,6 @@ type Database struct {
 	backend   backend        // The backend for managing trie nodes
 }
 
-// prepare initializes the database with provided configs, but the
-// database backend is still left as nil.
-func prepare(diskdb ethdb.Database, config *Config) *Database {
-	var preimages *preimageStore
-	if config != nil && config.Preimages {
-		preimages = newPreimageStore(diskdb)
-	}
-	return &Database{
-		config:    config,
-		diskdb:    diskdb,
-		preimages: preimages,
-	}
-}
-
 // NewDatabase initializes the trie database with default settings, note
 // the legacy hash-based scheme is used by default.
 func NewDatabase(diskdb ethdb.Database, config *Config) *Database {
@@ -149,9 +132,6 @@ func (db *Database) Reader(blockRoot common.Hash) (Reader, error) {
 // The passed in maps(nodes, states) will be retained to avoid copying everything.
 // Therefore, these maps must not be changed afterwards.
 func (db *Database) Update(root common.Hash, parent common.Hash, block uint64, nodes *trienode.MergedNodeSet, states *triestate.Set) error {
-	if db.config != nil && db.config.OnCommit != nil {
-		db.config.OnCommit(states)
-	}
 	if db.preimages != nil {
 		db.preimages.commit(false)
 	}
@@ -207,6 +187,15 @@ func (db *Database) WritePreimages() {
 	if db.preimages != nil {
 		db.preimages.commit(true)
 	}
+}
+
+// Preimage retrieves a cached trie node pre-image from memory. If it cannot be
+// found cached, the method queries the persistent database for the content.
+func (db *Database) Preimage(hash common.Hash) []byte {
+	if db.preimages == nil {
+		return nil
+	}
+	return db.preimages.preimage(hash)
 }
 
 // Cap iteratively flushes old but still referenced trie nodes until the total
@@ -284,15 +273,27 @@ func (db *Database) Recoverable(root common.Hash) (bool, error) {
 	return pdb.Recoverable(root), nil
 }
 
-// Reset wipes all available journal from the persistent database and discard
-// all caches and diff layers. Using the given root to create a new disk layer.
+// Disable deactivates the database and invalidates all available state layers
+// as stale to prevent access to the persistent state, which is in the syncing
+// stage.
+//
 // It's only supported by path-based database and will return an error for others.
-func (db *Database) Reset(root common.Hash) error {
+func (db *Database) Disable() error {
 	pdb, ok := db.backend.(*pathdb.Database)
 	if !ok {
 		return errors.New("not supported")
 	}
-	return pdb.Reset(root)
+	return pdb.Disable()
+}
+
+// Enable activates database and resets the state tree with the provided persistent
+// state root once the state sync is finished.
+func (db *Database) Enable(root common.Hash) error {
+	pdb, ok := db.backend.(*pathdb.Database)
+	if !ok {
+		return errors.New("not supported")
+	}
+	return pdb.Enable(root)
 }
 
 // Journal commits an entire diff hierarchy to disk into a single journal entry.

@@ -29,7 +29,7 @@ import (
 func TestExport(t *testing.T) {
 	outfile := fmt.Sprintf("%v/testExport.out", os.TempDir())
 	defer os.Remove(outfile)
-	agrod := runagrod(t, "--datadir", initagrod(t), "export", outfile)
+	agrod := runGeth(t, "--datadir", initGeth(t), "export", outfile)
 	agrod.WaitExit()
 	if have, want := agrod.ExitStatus(), 0; have != want {
 		t.Errorf("exit error, have %d want %d", have, want)

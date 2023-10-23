@@ -28,7 +28,7 @@ which can
 
 The idea is to specify the behaviour of this binary very _strict_, so that other
 node implementors can build replicas based on their own state-machines, and the
-state generators can swap between a \`agrod\`-based implementation and a \`parityvm\`-based
+state generators can swap between a \`geth\`-based implementation and a \`parityvm\`-based
 implementation.
 
 #### Command line params
@@ -412,7 +412,7 @@ cat trace-0-0x72fadbef39cd251a437eea619cfeda752271a5faaaa2147df012e112159ffb81.j
 In this example, the caller has not provided the required blockhash:
 ```
 ./evm t8n --input.alloc=./testdata/4/alloc.json --input.txs=./testdata/4/txs.json --input.env=./testdata/4/env.json --trace --state.fork=Berlin
-ERROR(4): agrodash(3) invoked, blockhash for that block not provided
+ERROR(4): getHash(3) invoked, blockhash for that block not provided
 ```
 Error code: 4
 

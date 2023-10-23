@@ -72,7 +72,7 @@ var customGenesisTests = []struct {
 	},
 }
 
-// Tests that initializing agrod with a custom genesis block and chain definitions
+// Tests that initializing Geth with a custom genesis block and chain definitions
 // work properly.
 func TestCustomGenesis(t *testing.T) {
 	t.Parallel()
@@ -85,10 +85,10 @@ func TestCustomGenesis(t *testing.T) {
 		if err := os.WriteFile(json, []byte(tt.genesis), 0600); err != nil {
 			t.Fatalf("test %d: failed to write genesis file: %v", i, err)
 		}
-		runagrod(t, "--datadir", datadir, "init", json).WaitExit()
+		runGeth(t, "--datadir", datadir, "init", json).WaitExit()
 
 		// Query the custom genesis block
-		agrod := runagrod(t, "--networkid", "1337", "--syncmode=full", "--cache", "16",
+		agrod := runGeth(t, "--networkid", "1337", "--syncmode=full", "--cache", "16",
 			"--datadir", datadir, "--maxpeers", "0", "--port", "0", "--authrpc.port", "0",
 			"--nodiscover", "--nat", "none", "--ipcdisable",
 			"--exec", tt.query, "console")
@@ -135,7 +135,7 @@ func TestCustomBackend(t *testing.T) {
 		}
 		{ // Init
 			args := append(tt.initArgs, "--datadir", datadir, "init", json)
-			agrod := runagrod(t, args...)
+			agrod := runGeth(t, args...)
 			agrod.ExpectRegexp(tt.initExpect)
 			agrod.ExpectExit()
 		}
@@ -144,7 +144,7 @@ func TestCustomBackend(t *testing.T) {
 				"--datadir", datadir, "--maxpeers", "0", "--port", "0", "--authrpc.port", "0",
 				"--nodiscover", "--nat", "none", "--ipcdisable",
 				"--exec", "eth.getBlock(0).nonce", "console")
-			agrod := runagrod(t, args...)
+			agrod := runGeth(t, args...)
 			agrod.ExpectRegexp(tt.execExpect)
 			agrod.ExpectExit()
 		}
@@ -176,12 +176,12 @@ func TestCustomBackend(t *testing.T) {
 		{ // Can't start pebble on top of leveldb
 			initArgs:   []string{"--db.engine", "leveldb"},
 			execArgs:   []string{"--db.engine", "pebble"},
-			execExpect: `Fatal: Could not open database: db.engine choice was pebble but found pre-existing leveldb database in specified data directory`,
+			execExpect: `Fatal: Failed to register the Ethereum service: db.engine choice was pebble but found pre-existing leveldb database in specified data directory`,
 		},
 		{ // Can't start leveldb on top of pebble
 			initArgs:   []string{"--db.engine", "pebble"},
 			execArgs:   []string{"--db.engine", "leveldb"},
-			execExpect: `Fatal: Could not open database: db.engine choice was leveldb but found pre-existing pebble database in specified data directory`,
+			execExpect: `Fatal: Failed to register the Ethereum service: db.engine choice was leveldb but found pre-existing pebble database in specified data directory`,
 		},
 		{ // Reject invalid backend choice
 			initArgs:   []string{"--db.engine", "mssql"},

@@ -43,7 +43,7 @@ func tmpDatadirWithKeystore(t *testing.T) string {
 }
 
 func TestAccountListEmpty(t *testing.T) {
-	agrod := runagrod(t, "account", "list")
+	agrod := runGeth(t, "account", "list")
 	agrod.ExpectExit()
 }
 
@@ -62,19 +62,19 @@ Account #2: {289d485d9771714cce91d3393d764e1311907acc} keystore://{{.Datadir}}\k
 `
 	}
 	{
-		agrod := runagrod(t, "account", "list", "--datadir", datadir)
+		agrod := runGeth(t, "account", "list", "--datadir", datadir)
 		agrod.Expect(want)
 		agrod.ExpectExit()
 	}
 	{
-		agrod := runagrod(t, "--datadir", datadir, "account", "list")
+		agrod := runGeth(t, "--datadir", datadir, "account", "list")
 		agrod.Expect(want)
 		agrod.ExpectExit()
 	}
 }
 
 func TestAccountNew(t *testing.T) {
-	agrod := runagrod(t, "account", "new", "--lightkdf")
+	agrod := runGeth(t, "account", "new", "--lightkdf")
 	defer agrod.ExpectExit()
 	agrod.Expect(`
 Your new account is locked with a password. Please give a password. Do not forget this password.
@@ -118,13 +118,13 @@ func TestAccountImport(t *testing.T) {
 }
 
 func TestAccountHelp(t *testing.T) {
-	agrod := runagrod(t, "account", "-h")
+	agrod := runGeth(t, "account", "-h")
 	agrod.WaitExit()
 	if have, want := agrod.ExitStatus(), 0; have != want {
 		t.Errorf("exit error, have %d want %d", have, want)
 	}
 
-	agrod = runagrod(t, "account", "import", "-h")
+	agrod = runGeth(t, "account", "import", "-h")
 	agrod.WaitExit()
 	if have, want := agrod.ExitStatus(), 0; have != want {
 		t.Errorf("exit error, have %d want %d", have, want)
@@ -141,13 +141,13 @@ func importAccountWithExpect(t *testing.T, key string, expected string) {
 	if err := os.WriteFile(passwordFile, []byte("foobar"), 0600); err != nil {
 		t.Error(err)
 	}
-	agrod := runagrod(t, "--lightkdf", "account", "import", "-password", passwordFile, keyfile)
+	agrod := runGeth(t, "--lightkdf", "account", "import", "-password", passwordFile, keyfile)
 	defer agrod.ExpectExit()
 	agrod.Expect(expected)
 }
 
 func TestAccountNewBadRepeat(t *testing.T) {
-	agrod := runagrod(t, "account", "new", "--lightkdf")
+	agrod := runGeth(t, "account", "new", "--lightkdf")
 	defer agrod.ExpectExit()
 	agrod.Expect(`
 Your new account is locked with a password. Please give a password. Do not forget this password.
@@ -160,7 +160,7 @@ Fatal: Passwords do not match
 
 func TestAccountUpdate(t *testing.T) {
 	datadir := tmpDatadirWithKeystore(t)
-	agrod := runagrod(t, "account", "update",
+	agrod := runGeth(t, "account", "update",
 		"--datadir", datadir, "--lightkdf",
 		"f466859ead1932d743d622cb74fc058882e8648a")
 	defer agrod.ExpectExit()
@@ -175,7 +175,7 @@ Repeat password: {{.InputLine "foobar2"}}
 }
 
 func TestWalletImport(t *testing.T) {
-	agrod := runagrod(t, "wallet", "import", "--lightkdf", "testdata/guswallet.json")
+	agrod := runGeth(t, "wallet", "import", "--lightkdf", "testdata/guswallet.json")
 	defer agrod.ExpectExit()
 	agrod.Expect(`
 !! Unsupported terminal, password will be echoed.
@@ -190,7 +190,7 @@ Address: {d4584b5f6229b7be90727b0fc8c6b91bb427821f}
 }
 
 func TestWalletImportBadPassword(t *testing.T) {
-	agrod := runagrod(t, "wallet", "import", "--lightkdf", "testdata/guswallet.json")
+	agrod := runGeth(t, "wallet", "import", "--lightkdf", "testdata/guswallet.json")
 	defer agrod.ExpectExit()
 	agrod.Expect(`
 !! Unsupported terminal, password will be echoed.
@@ -200,7 +200,7 @@ Fatal: could not decrypt key with given password
 }
 
 func TestUnlockFlag(t *testing.T) {
-	agrod := runMinimalagrod(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
+	agrod := runMinimalGeth(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "console", "--exec", "loadScript('testdata/empty.js')")
 	agrod.Expect(`
 Unlocking account f466859ead1932d743d622cb74fc058882e8648a | Attempt 1/3
@@ -222,7 +222,7 @@ undefined
 }
 
 func TestUnlockFlagWrongPassword(t *testing.T) {
-	agrod := runMinimalagrod(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
+	agrod := runMinimalGeth(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "console", "--exec", "loadScript('testdata/empty.js')")
 
 	defer agrod.ExpectExit()
@@ -240,7 +240,7 @@ Fatal: Failed to unlock account f466859ead1932d743d622cb74fc058882e8648a (could 
 
 // https://github.com/ethereum/go-ethereum/issues/1785
 func TestUnlockFlagMultiIndex(t *testing.T) {
-	agrod := runMinimalagrod(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
+	agrod := runMinimalGeth(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "--unlock", "0,2", "console", "--exec", "loadScript('testdata/empty.js')")
 
 	agrod.Expect(`
@@ -266,7 +266,7 @@ undefined
 }
 
 func TestUnlockFlagPasswordFile(t *testing.T) {
-	agrod := runMinimalagrod(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
+	agrod := runMinimalGeth(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "--password", "testdata/passwords.txt", "--unlock", "0,2", "console", "--exec", "loadScript('testdata/empty.js')")
 
 	agrod.Expect(`
@@ -287,7 +287,7 @@ undefined
 }
 
 func TestUnlockFlagPasswordFileWrongPassword(t *testing.T) {
-	agrod := runMinimalagrod(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
+	agrod := runMinimalGeth(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "--password",
 		"testdata/wrong-passwords.txt", "--unlock", "0,2")
 	defer agrod.ExpectExit()
@@ -298,7 +298,7 @@ Fatal: Failed to unlock account 0 (could not decrypt key with given password)
 
 func TestUnlockFlagAmbiguous(t *testing.T) {
 	store := filepath.Join("..", "..", "accounts", "keystore", "testdata", "dupes")
-	agrod := runMinimalagrod(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
+	agrod := runMinimalGeth(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "--keystore",
 		store, "--unlock", "f466859ead1932d743d622cb74fc058882e8648a",
 		"console", "--exec", "loadScript('testdata/empty.js')")
@@ -337,7 +337,7 @@ undefined
 
 func TestUnlockFlagAmbiguousWrongPassword(t *testing.T) {
 	store := filepath.Join("..", "..", "accounts", "keystore", "testdata", "dupes")
-	agrod := runMinimalagrod(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
+	agrod := runMinimalGeth(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "--keystore",
 		store, "--unlock", "f466859ead1932d743d622cb74fc058882e8648a")
 

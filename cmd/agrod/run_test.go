@@ -37,7 +37,7 @@ type testagrod struct {
 }
 
 func init() {
-	// Run the app if we've been exec'd as "agrod-test" in runagrod.
+	// Run the app if we've been exec'd as "agrod-test" in runGeth.
 	reexec.Register("agrod-test", func() {
 		if err := app.Run(os.Args); err != nil {
 			fmt.Fprintln(os.Stderr, err)
@@ -57,7 +57,7 @@ func TestMain(m *testing.M) {
 
 // spawns agrod with the given command line args. If the args don't set --datadir, the
 // child g gets a temporary data directory.
-func runagrod(t *testing.T, args ...string) *testagrod {
+func runGeth(t *testing.T, args ...string) *testagrod {
 	tt := &testagrod{}
 	tt.TestCmd = cmdtest.NewTestCmd(t, tt)
 	for i, arg := range args {

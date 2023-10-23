@@ -88,9 +88,15 @@ func (b *BlockGen) SetPoS() {
 	b.header.Difficulty = new(big.Int)
 }
 
-// SetBlobGas sets the data gas used by the blob in the generated block.
-func (b *BlockGen) SetBlobGas(blobGasUsed uint64) {
-	b.header.BlobGasUsed = &blobGasUsed
+// SetParentBeaconRoot sets the parent beacon root field of the generated
+// block.
+func (b *BlockGen) SetParentBeaconRoot(root common.Hash) {
+	b.header.ParentBeaconRoot = &root
+	var (
+		blockContext = NewEVMBlockContext(b.header, nil, &b.header.Coinbase)
+		vmenv        = vm.NewEVM(blockContext, vm.TxContext{}, b.statedb, b.config, vm.Config{})
+	)
+	ProcessBeaconBlockRoot(root, vmenv, b.statedb)
 }
 
 // addTx adds a transaction to the generated block. If no coinbase has
@@ -111,6 +117,9 @@ func (b *BlockGen) addTx(bc *BlockChain, vmConfig vm.Config, tx *types.Transacti
 	}
 	b.txs = append(b.txs, tx)
 	b.receipts = append(b.receipts, receipt)
+	if b.header.BlobGasUsed != nil {
+		*b.header.BlobGasUsed += receipt.BlobGasUsed
+	}
 }
 
 // AddTx adds a transaction to the generated block. If no coinbase has
@@ -411,7 +420,7 @@ func makeHeader(chain consensus.ChainReader, parent *types.Block, state *state.S
 		excessBlobGas := eip4844.CalcExcessBlobGas(parentExcessBlobGas, parentBlobGasUsed)
 		header.ExcessBlobGas = &excessBlobGas
 		header.BlobGasUsed = new(uint64)
-		header.BeaconRoot = new(common.Hash)
+		header.ParentBeaconRoot = new(common.Hash)
 	}
 	return header
 }

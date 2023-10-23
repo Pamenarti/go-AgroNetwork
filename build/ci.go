@@ -60,19 +60,19 @@ import (
 )
 
 var (
-	// Files that end up in the agrod*.zip archive.
-	agrodArchiveFiles = []string{
+	// Files that end up in the geth*.zip archive.
+	gethArchiveFiles = []string{
 		"COPYING",
-		executablePath("agrod"),
+		executablePath("geth"),
 	}
 
-	// Files that end up in the agrod-alltools*.zip archive.
+	// Files that end up in the geth-alltools*.zip archive.
 	allToolsArchiveFiles = []string{
 		"COPYING",
 		executablePath("abigen"),
 		executablePath("bootnode"),
 		executablePath("evm"),
-		executablePath("agrod"),
+		executablePath("geth"),
 		executablePath("rlpdump"),
 		executablePath("clef"),
 	}
@@ -92,7 +92,7 @@ var (
 			Description: "Developer utility version of the EVM (Ethereum Virtual Machine) that is capable of running bytecode snippets within a configurable environment and execution mode.",
 		},
 		{
-			BinaryName:  "agrod",
+			BinaryName:  "geth",
 			Description: "Ethereum CLI client.",
 		},
 		{
@@ -123,12 +123,12 @@ var (
 	//   wily, yakkety, zesty, artful, cosmic, disco, eoan, groovy, hirsuite, impish,
 	//   kinetic
 	debDistroGoBoots = map[string]string{
-		"trusty":  "golang-1.11", // EOL: 04/2024
-		"xenial":  "golang-go",   // EOL: 04/2026
-		"bionic":  "golang-go",   // EOL: 04/2028
-		"focal":   "golang-go",   // EOL: 04/2030
-		"jammy":   "golang-go",   // EOL: 04/2032
-		"lunar":   "golang-go",   // EOL: 01/2024
+		"trusty": "golang-1.11", // EOL: 04/2024
+		"xenial": "golang-go",   // EOL: 04/2026
+		"bionic": "golang-go",   // EOL: 04/2028
+		"focal":  "golang-go",   // EOL: 04/2030
+		"jammy":  "golang-go",   // EOL: 04/2032
+		"lunar":  "golang-go",   // EOL: 01/2024
 	}
 
 	debGoBootPaths = map[string]string{
@@ -136,18 +136,8 @@ var (
 		"golang-go":   "/usr/lib/go",
 	}
 
-	// This is the version of Go that will be downloaded by
-	//
-	//     go run ci.go install -dlgo
-	dlgoVersion = "1.21.0"
-
-	// This is the version of Go that will be used to bootstrap the PPA builder.
-	//
-	// This version is fine to be old and full of security holes, we just use it
-	// to build the latest Go. Don't change it. If it ever becomes insufficient,
-	// we need to switch over to a recursive builder to jumpt across supported
-	// versions.
-	gobootVersion = "1.19.6"
+	// This is where the tests should be unpacked.
+	executionSpecTestsDir = "tests/spec-tests"
 )
 
 var GOBIN, _ = filepath.Abs(filepath.Join("build", "bin"))
@@ -185,6 +175,8 @@ func main() {
 		doWindowsInstaller(os.Args[2:])
 	case "purge":
 		doPurge(os.Args[2:])
+	case "sanitycheck":
+		doSanityCheck()
 	default:
 		log.Fatal("unknown command ", os.Args[1])
 	}
@@ -206,9 +198,8 @@ func doInstall(cmdline []string) {
 	tc := build.GoToolchain{GOARCH: *arch, CC: *cc}
 	if *dlgo {
 		csdb := build.MustLoadChecksums("build/checksums.txt")
-		tc.Root = build.DownloadGo(csdb, dlgoVersion)
+		tc.Root = build.DownloadGo(csdb)
 	}
-
 	// Disable CLI markdown doc generation in release builds.
 	buildTags := []string{"urfave_cli_no_docs"}
 
@@ -294,14 +285,19 @@ func doTest(cmdline []string) {
 		coverage = flag.Bool("coverage", false, "Whether to record code coverage")
 		verbose  = flag.Bool("v", false, "Whether to log verbosely")
 		race     = flag.Bool("race", false, "Execute the race detector")
+		short     = flag.Bool("short", false, "Pass the 'short'-flag to go test")
+		cachedir = flag.String("cachedir", "./build/cache", "directory for caching downloads")
 	)
 	flag.CommandLine.Parse(cmdline)
+
+	// Get test fixtures.
+	csdb := build.MustLoadChecksums("build/checksums.txt")
+	downloadSpecTestFixtures(csdb, *cachedir)
 
 	// Configure the toolchain.
 	tc := build.GoToolchain{GOARCH: *arch, CC: *cc}
 	if *dlgo {
-		csdb := build.MustLoadChecksums("build/checksums.txt")
-		tc.Root = build.DownloadGo(csdb, dlgoVersion)
+		tc.Root = build.DownloadGo(csdb)
 	}
 	gotest := tc.Go("test")
 
@@ -323,6 +319,9 @@ func doTest(cmdline []string) {
 	if *race {
 		gotest.Args = append(gotest.Args, "-race")
 	}
+	if *short {
+		gotest.Args = append(gotest.Args, "-short")
+	}
 
 	packages := []string{"./..."}
 	if len(flag.CommandLine.Args()) > 0 {
@@ -330,6 +329,25 @@ func doTest(cmdline []string) {
 	}
 	gotest.Args = append(gotest.Args, packages...)
 	build.MustRun(gotest)
+}
+
+// downloadSpecTestFixtures downloads and extracts the execution-spec-tests fixtures.
+func downloadSpecTestFixtures(csdb *build.ChecksumDB, cachedir string) string {
+	executionSpecTestsVersion, err := build.Version(csdb, "spec-tests")
+	if err != nil {
+		log.Fatal(err)
+	}
+	ext := ".tar.gz"
+	base := "fixtures_develop" // TODO(MariusVanDerWijden) rename once the version becomes part of the filename
+	url := fmt.Sprintf("https://github.com/ethereum/execution-spec-tests/releases/download/v%s/%s%s", executionSpecTestsVersion, base, ext)
+	archivePath := filepath.Join(cachedir, base+ext)
+	if err := csdb.DownloadFile(url, archivePath); err != nil {
+		log.Fatal(err)
+	}
+	if err := build.ExtractArchive(archivePath, executionSpecTestsDir); err != nil {
+		log.Fatal(err)
+	}
+	return filepath.Join(cachedir, base)
 }
 
 // doLint runs golangci-lint on requested packages.
@@ -351,9 +369,11 @@ func doLint(cmdline []string) {
 
 // downloadLinter downloads and unpacks golangci-lint.
 func downloadLinter(cachedir string) string {
-	const version = "1.51.1"
-
 	csdb := build.MustLoadChecksums("build/checksums.txt")
+	version, err := build.Version(csdb, "golangci")
+	if err != nil {
+		log.Fatal(err)
+	}
 	arch := runtime.GOARCH
 	ext := ".tar.gz"
 
@@ -382,7 +402,7 @@ func doArchive(cmdline []string) {
 		atype   = flag.String("type", "zip", "Type of archive to write (zip|tar)")
 		signer  = flag.String("signer", "", `Environment variable holding the signing key (e.g. LINUX_SIGNING_KEY)`)
 		signify = flag.String("signify", "", `Environment variable holding the signify key (e.g. LINUX_SIGNIFY_KEY)`)
-		upload  = flag.String("upload", "", `Destination to upload the archives (usually "agrodstore/builds")`)
+		upload  = flag.String("upload", "", `Destination to upload the archives (usually "gethstore/builds")`)
 		ext     string
 	)
 	flag.CommandLine.Parse(cmdline)
@@ -397,18 +417,18 @@ func doArchive(cmdline []string) {
 
 	var (
 		env      = build.Env()
-		baseagrod = archiveBasename(*arch, params.ArchiveVersion(env.Commit))
-		agrod     = "agrod-" + baseagrod + ext
-		alltools = "agrod-alltools-" + baseagrod + ext
+		basegeth = archiveBasename(*arch, params.ArchiveVersion(env.Commit))
+		geth     = "geth-" + basegeth + ext
+		alltools = "geth-alltools-" + basegeth + ext
 	)
 	maybeSkipArchive(env)
-	if err := build.WriteArchive(agrod, agrodArchiveFiles); err != nil {
+	if err := build.WriteArchive(geth, gethArchiveFiles); err != nil {
 		log.Fatal(err)
 	}
 	if err := build.WriteArchive(alltools, allToolsArchiveFiles); err != nil {
 		log.Fatal(err)
 	}
-	for _, archive := range []string{agrod, alltools} {
+	for _, archive := range []string{geth, alltools} {
 		if err := archiveUpload(archive, *upload, *signer, *signify); err != nil {
 			log.Fatal(err)
 		}
@@ -439,7 +459,7 @@ func archiveUpload(archive string, blobstore string, signer string, signifyVar s
 	}
 	if signifyVar != "" {
 		key := os.Getenv(signifyVar)
-		untrustedComment := "verify with agrod-release.pub"
+		untrustedComment := "verify with geth-release.pub"
 		trustedComment := fmt.Sprintf("%s (%s)", archive, time.Now().UTC().Format(time.RFC1123))
 		if err := signify.SignFile(archive, archive+".sig", key, untrustedComment, trustedComment); err != nil {
 			return err
@@ -504,14 +524,14 @@ func doDocker(cmdline []string) {
 		build.MustRun(auther)
 	}
 	// Retrieve the version infos to build and push to the following paths:
-	//  - ethereum/client-go:latest                            - Pushes to the master branch, agrod only
-	//  - ethereum/client-go:stable                            - Version tag publish on GitHub, agrod only
-	//  - ethereum/client-go:alltools-latest                   - Pushes to the master branch, agrod & tools
-	//  - ethereum/client-go:alltools-stable                   - Version tag publish on GitHub, agrod & tools
-	//  - ethereum/client-go:release-<major>.<minor>           - Version tag publish on GitHub, agrod only
-	//  - ethereum/client-go:alltools-release-<major>.<minor>  - Version tag publish on GitHub, agrod & tools
-	//  - ethereum/client-go:v<major>.<minor>.<patch>          - Version tag publish on GitHub, agrod only
-	//  - ethereum/client-go:alltools-v<major>.<minor>.<patch> - Version tag publish on GitHub, agrod & tools
+	//  - ethereum/client-go:latest                            - Pushes to the master branch, Geth only
+	//  - ethereum/client-go:stable                            - Version tag publish on GitHub, Geth only
+	//  - ethereum/client-go:alltools-latest                   - Pushes to the master branch, Geth & tools
+	//  - ethereum/client-go:alltools-stable                   - Version tag publish on GitHub, Geth & tools
+	//  - ethereum/client-go:release-<major>.<minor>           - Version tag publish on GitHub, Geth only
+	//  - ethereum/client-go:alltools-release-<major>.<minor>  - Version tag publish on GitHub, Geth & tools
+	//  - ethereum/client-go:v<major>.<minor>.<patch>          - Version tag publish on GitHub, Geth only
+	//  - ethereum/client-go:alltools-v<major>.<minor>.<patch> - Version tag publish on GitHub, Geth & tools
 	var tags []string
 
 	switch {
@@ -527,7 +547,7 @@ func doDocker(cmdline []string) {
 
 		// Tag and upload the images to Docker Hub
 		for _, tag := range tags {
-			agrodImage := fmt.Sprintf("%s:%s-%s", *upload, tag, runtime.GOARCH)
+			gethImage := fmt.Sprintf("%s:%s-%s", *upload, tag, runtime.GOARCH)
 			toolImage := fmt.Sprintf("%s:alltools-%s-%s", *upload, tag, runtime.GOARCH)
 
 			// If the image already exists (non version tag), check the build
@@ -535,7 +555,7 @@ func doDocker(cmdline []string) {
 			// are running. This is still a tiny bit racey if two published are
 			// done at the same time, but that's extremely unlikely even on the
 			// master branch.
-			for _, img := range []string{agrodImage, toolImage} {
+			for _, img := range []string{gethImage, toolImage} {
 				if exec.Command("docker", "pull", img).Run() != nil {
 					continue // Generally the only failure is a missing image, which is good
 				}
@@ -561,9 +581,9 @@ func doDocker(cmdline []string) {
 					}
 				}
 			}
-			build.MustRunCommand("docker", "image", "tag", fmt.Sprintf("%s:TAG", *upload), agrodImage)
+			build.MustRunCommand("docker", "image", "tag", fmt.Sprintf("%s:TAG", *upload), gethImage)
 			build.MustRunCommand("docker", "image", "tag", fmt.Sprintf("%s:alltools-TAG", *upload), toolImage)
-			build.MustRunCommand("docker", "push", agrodImage)
+			build.MustRunCommand("docker", "push", gethImage)
 			build.MustRunCommand("docker", "push", toolImage)
 		}
 	}
@@ -577,10 +597,10 @@ func doDocker(cmdline []string) {
 
 			for _, tag := range tags {
 				for _, arch := range strings.Split(*manifest, ",") {
-					agrodImage := fmt.Sprintf("%s:%s-%s", *upload, tag, arch)
+					gethImage := fmt.Sprintf("%s:%s-%s", *upload, tag, arch)
 					toolImage := fmt.Sprintf("%s:alltools-%s-%s", *upload, tag, arch)
 
-					for _, img := range []string{agrodImage, toolImage} {
+					for _, img := range []string{gethImage, toolImage} {
 						if out, err := exec.Command("docker", "pull", img).CombinedOutput(); err != nil {
 							log.Printf("Required image %s unavailable: %v\nOutput: %s", img, err, out)
 							mismatch = true
@@ -622,16 +642,16 @@ func doDocker(cmdline []string) {
 			log.Println("Relinquishing publish to other builder")
 			return
 		}
-		// Assemble and push the agrod manifest image
+		// Assemble and push the Geth manifest image
 		for _, tag := range tags {
-			agrodImage := fmt.Sprintf("%s:%s", *upload, tag)
+			gethImage := fmt.Sprintf("%s:%s", *upload, tag)
 
-			var agrodSubImages []string
+			var gethSubImages []string
 			for _, arch := range strings.Split(*manifest, ",") {
-				agrodSubImages = append(agrodSubImages, agrodImage+"-"+arch)
+				gethSubImages = append(gethSubImages, gethImage+"-"+arch)
 			}
-			build.MustRunCommand("docker", append([]string{"manifest", "create", agrodImage}, agrodSubImages...)...)
-			build.MustRunCommand("docker", "manifest", "push", agrodImage)
+			build.MustRunCommand("docker", append([]string{"manifest", "create", gethImage}, gethSubImages...)...)
+			build.MustRunCommand("docker", "manifest", "push", gethImage)
 		}
 		// Assemble and push the alltools manifest image
 		for _, tag := range tags {
@@ -653,7 +673,7 @@ func doDebianSource(cmdline []string) {
 		cachedir = flag.String("cachedir", "./build/cache", `Filesystem path to cache the downloaded Go bundles at`)
 		signer   = flag.String("signer", "", `Signing key name, also used as package author`)
 		upload   = flag.String("upload", "", `Where to upload the source package (usually "ethereum/ethereum")`)
-		sshUser  = flag.String("sftp-user", "", `Username for SFTP upload (usually "agrod-ci")`)
+		sshUser  = flag.String("sftp-user", "", `Username for SFTP upload (usually "geth-ci")`)
 		workdir  = flag.String("workdir", "", `Output directory for packages (uses temp dir if unset)`)
 		now      = time.Now()
 	)
@@ -735,6 +755,10 @@ func doDebianSource(cmdline []string) {
 // to bootstrap the builder Go.
 func downloadGoBootstrapSources(cachedir string) string {
 	csdb := build.MustLoadChecksums("build/checksums.txt")
+	gobootVersion, err := build.Version(csdb, "ppa-builder")
+	if err != nil {
+		log.Fatal(err)
+	}
 	file := fmt.Sprintf("go%s.src.tar.gz", gobootVersion)
 	url := "https://dl.google.com/go/" + file
 	dst := filepath.Join(cachedir, file)
@@ -747,6 +771,10 @@ func downloadGoBootstrapSources(cachedir string) string {
 // downloadGoSources downloads the Go source tarball.
 func downloadGoSources(cachedir string) string {
 	csdb := build.MustLoadChecksums("build/checksums.txt")
+	dlgoVersion, err := build.Version(csdb, "golang")
+	if err != nil {
+		log.Fatal(err)
+	}
 	file := fmt.Sprintf("go%s.src.tar.gz", dlgoVersion)
 	url := "https://dl.google.com/go/" + file
 	dst := filepath.Join(cachedir, file)
@@ -793,7 +821,7 @@ func makeWorkdir(wdflag string) string {
 	if wdflag != "" {
 		err = os.MkdirAll(wdflag, 0744)
 	} else {
-		wdflag, err = os.MkdirTemp("", "agrod-build-")
+		wdflag, err = os.MkdirTemp("", "geth-build-")
 	}
 	if err != nil {
 		log.Fatal(err)
@@ -952,7 +980,7 @@ func doWindowsInstaller(cmdline []string) {
 		arch    = flag.String("arch", runtime.GOARCH, "Architecture for cross build packaging")
 		signer  = flag.String("signer", "", `Environment variable holding the signing key (e.g. WINDOWS_SIGNING_KEY)`)
 		signify = flag.String("signify key", "", `Environment variable holding the signify signing key (e.g. WINDOWS_SIGNIFY_KEY)`)
-		upload  = flag.String("upload", "", `Destination to upload the archives (usually "agrodstore/builds")`)
+		upload  = flag.String("upload", "", `Destination to upload the archives (usually "gethstore/builds")`)
 		workdir = flag.String("workdir", "", `Output directory for packages (uses temp dir if unset)`)
 	)
 	flag.CommandLine.Parse(cmdline)
@@ -964,28 +992,28 @@ func doWindowsInstaller(cmdline []string) {
 	var (
 		devTools []string
 		allTools []string
-		agrodTool string
+		gethTool string
 	)
 	for _, file := range allToolsArchiveFiles {
 		if file == "COPYING" { // license, copied later
 			continue
 		}
 		allTools = append(allTools, filepath.Base(file))
-		if filepath.Base(file) == "agrod.exe" {
-			agrodTool = file
+		if filepath.Base(file) == "geth.exe" {
+			gethTool = file
 		} else {
 			devTools = append(devTools, file)
 		}
 	}
 
 	// Render NSIS scripts: Installer NSIS contains two installer sections,
-	// first section contains the agrod binary, second section holds the dev tools.
+	// first section contains the geth binary, second section holds the dev tools.
 	templateData := map[string]interface{}{
 		"License":  "COPYING",
-		"agrod":     agrodTool,
+		"Geth":     gethTool,
 		"DevTools": devTools,
 	}
-	build.Render("build/nsis.agrod.nsi", filepath.Join(*workdir, "agrod.nsi"), 0644, nil)
+	build.Render("build/nsis.geth.nsi", filepath.Join(*workdir, "geth.nsi"), 0644, nil)
 	build.Render("build/nsis.install.nsh", filepath.Join(*workdir, "install.nsh"), 0644, templateData)
 	build.Render("build/nsis.uninstall.nsh", filepath.Join(*workdir, "uninstall.nsh"), 0644, allTools)
 	build.Render("build/nsis.pathupdate.nsh", filepath.Join(*workdir, "PathUpdate.nsh"), 0644, nil)
@@ -1003,7 +1031,7 @@ func doWindowsInstaller(cmdline []string) {
 	if env.Commit != "" {
 		version[2] += "-" + env.Commit[:8]
 	}
-	installer, err := filepath.Abs("agrod-" + archiveBasename(*arch, params.ArchiveVersion(env.Commit)) + ".exe")
+	installer, err := filepath.Abs("geth-" + archiveBasename(*arch, params.ArchiveVersion(env.Commit)) + ".exe")
 	if err != nil {
 		log.Fatalf("Failed to convert installer file path: %v", err)
 	}
@@ -1013,7 +1041,7 @@ func doWindowsInstaller(cmdline []string) {
 		"/DMINORVERSION="+version[1],
 		"/DBUILDVERSION="+version[2],
 		"/DARCH="+*arch,
-		filepath.Join(*workdir, "agrod.nsi"),
+		filepath.Join(*workdir, "geth.nsi"),
 	)
 	// Sign and publish installer.
 	if err := archiveUpload(installer, *upload, *signer, *signify); err != nil {
@@ -1025,7 +1053,7 @@ func doWindowsInstaller(cmdline []string) {
 
 func doPurge(cmdline []string) {
 	var (
-		store = flag.String("store", "", `Destination from where to purge archives (usually "agrodstore/builds")`)
+		store = flag.String("store", "", `Destination from where to purge archives (usually "gethstore/builds")`)
 		limit = flag.Int("days", 30, `Age threshold above which to delete unstable archives`)
 	)
 	flag.CommandLine.Parse(cmdline)
@@ -1072,4 +1100,8 @@ func doPurge(cmdline []string) {
 	if err := build.AzureBlobstoreDelete(auth, blobs); err != nil {
 		log.Fatal(err)
 	}
+}
+
+func doSanityCheck() {
+	build.DownloadAndVerifyChecksums(build.MustLoadChecksums("build/checksums.txt"))
 }
