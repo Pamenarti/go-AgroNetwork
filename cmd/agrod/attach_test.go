@@ -60,7 +60,7 @@ func TestRemoteDbWithHeaders(t *testing.T) {
 	testReceiveHeaders(t, ln, "db", "metadata", "--remotedb", fmt.Sprintf("http://localhost:%d", port), "-H", "first: one", "-H", "second: two")
 }
 
-func testReceiveHeaders(t *testing.T, ln net.Listener, agrodArgs ...string) {
+func testReceiveHeaders(t *testing.T, ln net.Listener, gethArgs ...string) {
 	var ok atomic.Uint32
 	server := &http.Server{
 		Addr: "localhost:0",
@@ -76,7 +76,7 @@ func testReceiveHeaders(t *testing.T, ln net.Listener, agrodArgs ...string) {
 		}}}
 	go server.Serve(ln)
 	defer server.Close()
-	runGeth(t, agrodArgs...).WaitExit()
+	runGeth(t, gethArgs...).WaitExit()
 	if ok.Load() != 1 {
 		t.Fatal("Test fail, expected invocation to succeed")
 	}

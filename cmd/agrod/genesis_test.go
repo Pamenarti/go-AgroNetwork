@@ -72,7 +72,7 @@ var customGenesisTests = []struct {
 	},
 }
 
-// Tests that initializing Geth with a custom genesis block and chain definitions
+// Tests that initializing agrod with a custom genesis block and chain definitions
 // work properly.
 func TestCustomGenesis(t *testing.T) {
 	t.Parallel()
@@ -92,8 +92,8 @@ func TestCustomGenesis(t *testing.T) {
 			"--datadir", datadir, "--maxpeers", "0", "--port", "0", "--authrpc.port", "0",
 			"--nodiscover", "--nat", "none", "--ipcdisable",
 			"--exec", tt.query, "console")
-		agrod.ExpectRegexp(tt.result)
-		agrod.ExpectExit()
+		geth.ExpectRegexp(tt.result)
+		geth.ExpectExit()
 	}
 }
 
@@ -136,8 +136,8 @@ func TestCustomBackend(t *testing.T) {
 		{ // Init
 			args := append(tt.initArgs, "--datadir", datadir, "init", json)
 			agrod := runGeth(t, args...)
-			agrod.ExpectRegexp(tt.initExpect)
-			agrod.ExpectExit()
+			geth.ExpectRegexp(tt.initExpect)
+			geth.ExpectExit()
 		}
 		{ // Exec + query
 			args := append(tt.execArgs, "--networkid", "1337", "--syncmode=full", "--cache", "16",
@@ -145,8 +145,8 @@ func TestCustomBackend(t *testing.T) {
 				"--nodiscover", "--nat", "none", "--ipcdisable",
 				"--exec", "eth.getBlock(0).nonce", "console")
 			agrod := runGeth(t, args...)
-			agrod.ExpectRegexp(tt.execExpect)
-			agrod.ExpectExit()
+			geth.ExpectRegexp(tt.execExpect)
+			geth.ExpectExit()
 		}
 		return nil
 	}
