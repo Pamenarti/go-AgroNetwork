@@ -37,7 +37,7 @@ const (
 // spawns agrod with the given command line args, using a set of flags to minimise
 // memory and disk IO. If the args don't set --datadir, the
 // child g gets a temporary data directory.
-func runMinimalGeth(t *testing.T, args ...string) *testgeth {
+func runMinimalGeth(t *testing.T, args ...string) *testagrod {
 	// --goerli to make the 'writing genesis to disk' faster (no accounts)
 	// --networkid=1337 to avoid cache bump
 	// --syncmode=full to avoid allocating fast sync bloom
@@ -56,20 +56,20 @@ func TestConsoleWelcome(t *testing.T) {
 	agrod := runMinimalGeth(t, "--miner.etherbase", coinbase, "console")
 
 	// Gather all the infos the welcome message needs to contain
-	geth.SetTemplateFunc("goos", func() string { return runtime.GOOS })
-	geth.SetTemplateFunc("goarch", func() string { return runtime.GOARCH })
-	geth.SetTemplateFunc("gover", runtime.Version)
-	geth.SetTemplateFunc("agrodver", func() string { return params.VersionWithCommit("", "") })
-	geth.SetTemplateFunc("niltime", func() string {
+	agrod.SetTemplateFunc("goos", func() string { return runtime.GOOS })
+	agrod.SetTemplateFunc("goarch", func() string { return runtime.GOARCH })
+	agrod.SetTemplateFunc("gover", runtime.Version)
+	agrod.SetTemplateFunc("agrodver", func() string { return params.VersionWithCommit("", "") })
+	agrod.SetTemplateFunc("niltime", func() string {
 		return time.Unix(1548854791, 0).Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
 	})
-	geth.SetTemplateFunc("apis", func() string { return ipcAPIs })
+	agrod.SetTemplateFunc("apis", func() string { return ipcAPIs })
 
 	// Verify the actual welcome message to the required template
-	geth.Expect(`
-Welcome to the agrod JavaScript console!
+	agrod.Expect(`
+Welcome to the Geth JavaScript console!
 
-instance: agrod/v{{agrodver}}/{{goos}}-{{goarch}}/{{gover}}
+instance: Geth/v{{agrodver}}/{{goos}}-{{goarch}}/{{gover}}
 coinbase: {{.Etherbase}}
 at block: 0 ({{niltime}})
  datadir: {{.Datadir}}
@@ -78,7 +78,7 @@ at block: 0 ({{niltime}})
 To exit, press ctrl-d or type exit
 > {{.InputLine "exit"}}
 `)
-	geth.ExpectExit()
+	agrod.ExpectExit()
 }
 
 // Tests that a console can be attached to a running node via various means.
@@ -116,10 +116,10 @@ func TestAttachWelcome(t *testing.T) {
 		waitForEndpoint(t, endpoint, 3*time.Second)
 		testAttachWelcome(t, agrod, endpoint, httpAPIs)
 	})
-	geth.Kill()
+	agrod.Kill()
 }
 
-func testAttachWelcome(t *testing.T, agrod *testgeth, endpoint, apis string) {
+func testAttachWelcome(t *testing.T, agrod *testagrod, endpoint, apis string) {
 	// Attach to a running agrod node and terminate immediately
 	attach := runGeth(t, "attach", endpoint)
 	defer attach.ExpectExit()
@@ -130,19 +130,19 @@ func testAttachWelcome(t *testing.T, agrod *testgeth, endpoint, apis string) {
 	attach.SetTemplateFunc("goarch", func() string { return runtime.GOARCH })
 	attach.SetTemplateFunc("gover", runtime.Version)
 	attach.SetTemplateFunc("agrodver", func() string { return params.VersionWithCommit("", "") })
-	attach.SetTemplateFunc("etherbase", func() string { return geth.Etherbase })
+	attach.SetTemplateFunc("etherbase", func() string { return agrod.Etherbase })
 	attach.SetTemplateFunc("niltime", func() string {
 		return time.Unix(1548854791, 0).Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
 	})
 	attach.SetTemplateFunc("ipc", func() bool { return strings.HasPrefix(endpoint, "ipc") })
-	attach.SetTemplateFunc("datadir", func() string { return geth.Datadir })
+	attach.SetTemplateFunc("datadir", func() string { return agrod.Datadir })
 	attach.SetTemplateFunc("apis", func() string { return apis })
 
 	// Verify the actual welcome message to the required template
 	attach.Expect(`
-Welcome to the agrod JavaScript console!
+Welcome to the Geth JavaScript console!
 
-instance: agrod/v{{agrodver}}/{{goos}}-{{goarch}}/{{gover}}
+instance: Geth/v{{agrodver}}/{{goos}}-{{goarch}}/{{gover}}
 coinbase: {{etherbase}}
 at block: 0 ({{niltime}}){{if ipc}}
  datadir: {{datadir}}{{end}}
