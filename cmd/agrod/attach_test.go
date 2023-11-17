@@ -32,7 +32,7 @@ func (t *testHandler) ServeHTTP(out http.ResponseWriter, in *http.Request) {
 	t.body(out, in)
 }
 
-// TestAttachWithHeaders tests that 'agrod attach' with custom headers works, i.e
+// TestAttachWithHeaders tests that 'geth attach' with custom headers works, i.e
 // that custom headers are forwarded to the target.
 func TestAttachWithHeaders(t *testing.T) {
 	t.Parallel()
@@ -48,7 +48,7 @@ func TestAttachWithHeaders(t *testing.T) {
 	// This is fixed in a follow-up PR.
 }
 
-// TestAttachWithHeaders tests that 'agrod db --remotedb' with custom headers works, i.e
+// TestAttachWithHeaders tests that 'geth db --remotedb' with custom headers works, i.e
 // that custom headers are forwarded to the target.
 func TestRemoteDbWithHeaders(t *testing.T) {
 	t.Parallel()
@@ -60,8 +60,8 @@ func TestRemoteDbWithHeaders(t *testing.T) {
 	testReceiveHeaders(t, ln, "db", "metadata", "--remotedb", fmt.Sprintf("http://localhost:%d", port), "-H", "first: one", "-H", "second: two")
 }
 
-func testReceiveHeaders(t *testing.T, ln net.Listener, agrodArgs ...string) {
-	var ok atomic.Uint32
+func testReceiveHeaders(t *testing.T, ln net.Listener, gethArgs ...string) {
+	var ok uint32
 	server := &http.Server{
 		Addr: "localhost:0",
 		Handler: &testHandler{func(w http.ResponseWriter, r *http.Request) {
@@ -72,12 +72,17 @@ func testReceiveHeaders(t *testing.T, ln net.Listener, agrodArgs ...string) {
 			if have, want := r.Header.Get("second"), "two"; have != want {
 				t.Fatalf("missing header, have %v want %v", have, want)
 			}
-			ok.Store(1)
+			atomic.StoreUint32(&ok, 1)
 		}}}
 	go server.Serve(ln)
 	defer server.Close()
+<<<<<<< HEAD
 	runGeth(t, agrodArgs...).WaitExit()
 	if ok.Load() != 1 {
+=======
+	runGeth(t, gethArgs...).WaitExit()
+	if atomic.LoadUint32(&ok) != 1 {
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 		t.Fatal("Test fail, expected invocation to succeed")
 	}
 }

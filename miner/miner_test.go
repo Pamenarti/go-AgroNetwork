@@ -300,9 +300,8 @@ func createMiner(t *testing.T) (*Miner, *event.TypeMux, func(skipMiner bool)) {
 	}
 	// Create chainConfig
 	chainDB := rawdb.NewMemoryDatabase()
-	triedb := trie.NewDatabase(chainDB, nil)
 	genesis := minerTestGenesisBlock(15, 11_500_000, common.HexToAddress("12345"))
-	chainConfig, _, err := core.SetupGenesisBlock(chainDB, triedb, genesis)
+	chainConfig, _, err := core.SetupGenesisBlock(chainDB, trie.NewDatabase(chainDB), genesis)
 	if err != nil {
 		t.Fatalf("can't create new chain config: %v", err)
 	}
@@ -313,8 +312,13 @@ func createMiner(t *testing.T) (*Miner, *event.TypeMux, func(skipMiner bool)) {
 	if err != nil {
 		t.Fatalf("can't create new chain %v", err)
 	}
+<<<<<<< HEAD
 	statedb, _ := state.New(bc.Genesis().Root(), bc.StateCache(), nil)
 	blockchain := &testBlockChain{bc.Genesis().Root(), chainConfig, statedb, 10000000, new(event.Feed)}
+=======
+	statedb, _ := state.New(types.EmptyRootHash, state.NewDatabase(chainDB), nil)
+	blockchain := &testBlockChain{chainConfig, statedb, 10000000, new(event.Feed)}
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 
 	pool := legacypool.New(testTxPoolConfig, blockchain)
 	txpool, _ := txpool.New(new(big.Int).SetUint64(testTxPoolConfig.PriceLimit), blockchain, []txpool.SubPool{pool})

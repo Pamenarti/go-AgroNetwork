@@ -108,6 +108,7 @@ func (ec *Client) PeerCount(ctx context.Context) (uint64, error) {
 	return uint64(result), err
 }
 
+<<<<<<< HEAD
 // BlockReceipts returns the receipts of a given block number or hash.
 func (ec *Client) BlockReceipts(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) ([]*types.Receipt, error) {
 	var r []*types.Receipt
@@ -118,6 +119,8 @@ func (ec *Client) BlockReceipts(ctx context.Context, blockNrOrHash rpc.BlockNumb
 	return r, err
 }
 
+=======
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 type rpcBlock struct {
 	Hash         common.Hash         `json:"hash"`
 	Transactions []rpcTransaction    `json:"transactions"`

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with go-ethereum. If not, see <http://www.gnu.org/licenses/>.
 
-// agrod is the official command-line client for Ethereum.
+// geth is the official command-line client for Ethereum.
 package main
 
 import (
@@ -39,7 +39,6 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/node"
-	"go.uber.org/automaxprocs/maxprocs"
 
 	// Force-load the tracer engines to trigger registration
 	_ "github.com/ethereum/go-ethereum/eth/tracers/js"
@@ -49,7 +48,7 @@ import (
 )
 
 const (
-	clientIdentifier = "agrod" // Client identifier to advertise over the network
+	clientIdentifier = "geth" // Client identifier to advertise over the network
 )
 
 var (
@@ -79,23 +78,26 @@ var (
 		utils.TxPoolAccountQueueFlag,
 		utils.TxPoolGlobalQueueFlag,
 		utils.TxPoolLifetimeFlag,
-		utils.BlobPoolDataDirFlag,
-		utils.BlobPoolDataCapFlag,
-		utils.BlobPoolPriceBumpFlag,
 		utils.SyncModeFlag,
 		utils.SyncTargetFlag,
 		utils.ExitWhenSyncedFlag,
 		utils.GCModeFlag,
 		utils.SnapshotFlag,
 		utils.TxLookupLimitFlag,
+<<<<<<< HEAD
 		utils.TransactionHistoryFlag,
 		utils.StateHistoryFlag,
+=======
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 		utils.LightServeFlag,
 		utils.LightIngressFlag,
 		utils.LightEgressFlag,
 		utils.LightMaxPeersFlag,
 		utils.LightNoPruneFlag,
 		utils.LightKDFFlag,
+		utils.UltraLightServersFlag,
+		utils.UltraLightFractionFlag,
+		utils.UltraLightOnlyAnnounceFlag,
 		utils.LightNoSyncServeFlag,
 		utils.EthRequiredBlocksFlag,
 		utils.LegacyWhitelistFlag,
@@ -200,7 +202,11 @@ var app = flags.NewApp("the go-ethereum command line interface")
 
 func init() {
 	// Initialize the CLI app and start Geth
+<<<<<<< HEAD
 	app.Action = agrod
+=======
+	app.Action = geth
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	app.Copyright = "Copyright 2013-2023 The go-ethereum Authors"
 	app.Commands = []*cli.Command{
 		// See chaincmd.go:
@@ -249,7 +255,6 @@ func init() {
 	flags.AutoEnvVars(app.Flags, "GETH")
 
 	app.Before = func(ctx *cli.Context) error {
-		maxprocs.Set() // Automatically set GOMAXPROCS to match Linux container CPU quota.
 		flags.MigrateGlobalFlags(ctx)
 		if err := debug.Setup(ctx); err != nil {
 			return err
@@ -281,9 +286,12 @@ func prepare(ctx *cli.Context) {
 
 	case ctx.IsSet(utils.SepoliaFlag.Name):
 		log.Info("Starting Geth on Sepolia testnet...")
+<<<<<<< HEAD
 
 	case ctx.IsSet(utils.HoleskyFlag.Name):
 		log.Info("Starting Geth on Holesky testnet...")
+=======
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 
 	case ctx.IsSet(utils.DeveloperFlag.Name):
 		log.Info("Starting Geth in ephemeral dev mode...")
@@ -331,10 +339,10 @@ func prepare(ctx *cli.Context) {
 	go metrics.CollectProcessMetrics(3 * time.Second)
 }
 
-// agrod is the main entry point into the system if no special subcommand is run.
+// geth is the main entry point into the system if no special subcommand is run.
 // It creates a default node based on the command line arguments and runs it in
 // blocking mode, waiting for it to be shut down.
-func agrod(ctx *cli.Context) error {
+func geth(ctx *cli.Context) error {
 	if args := ctx.Args().Slice(); len(args) > 0 {
 		return fmt.Errorf("invalid command: %q", args[0])
 	}
@@ -364,7 +372,7 @@ func startNode(ctx *cli.Context, stack *node.Node, backend ethapi.Backend, isCon
 	events := make(chan accounts.WalletEvent, 16)
 	stack.AccountManager().Subscribe(events)
 
-	// Create a client to interact with local agrod node.
+	// Create a client to interact with local geth node.
 	rpcClient := stack.Attach()
 	ethClient := ethclient.NewClient(rpcClient)
 

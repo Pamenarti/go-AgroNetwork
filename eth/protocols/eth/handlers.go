@@ -232,7 +232,48 @@ func ServiceGetBlockBodiesQuery(chain *core.BlockChain, query GetBlockBodiesRequ
 	return bodies
 }
 
+<<<<<<< HEAD
 func handleGetReceipts(backend Backend, msg Decoder, peer *Peer) error {
+=======
+func handleGetNodeData66(backend Backend, msg Decoder, peer *Peer) error {
+	// Decode the trie node data retrieval message
+	var query GetNodeDataPacket66
+	if err := msg.Decode(&query); err != nil {
+		return fmt.Errorf("%w: message %v: %v", errDecode, msg, err)
+	}
+	response := ServiceGetNodeDataQuery(backend.Chain(), query.GetNodeDataPacket)
+	return peer.ReplyNodeData(query.RequestId, response)
+}
+
+// ServiceGetNodeDataQuery assembles the response to a node data query. It is
+// exposed to allow external packages to test protocol behavior.
+func ServiceGetNodeDataQuery(chain *core.BlockChain, query GetNodeDataPacket) [][]byte {
+	// Gather state data until the fetch or network limits is reached
+	var (
+		bytes int
+		nodes [][]byte
+	)
+	for lookups, hash := range query {
+		if bytes >= softResponseLimit || len(nodes) >= maxNodeDataServe ||
+			lookups >= 2*maxNodeDataServe {
+			break
+		}
+		// Retrieve the requested state entry
+		entry, err := chain.TrieNode(hash)
+		if len(entry) == 0 || err != nil {
+			// Read the contract code with prefix only to save unnecessary lookups.
+			entry, err = chain.ContractCodeWithPrefix(hash)
+		}
+		if err == nil && len(entry) > 0 {
+			nodes = append(nodes, entry)
+			bytes += len(entry)
+		}
+	}
+	return nodes
+}
+
+func handleGetReceipts66(backend Backend, msg Decoder, peer *Peer) error {
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	// Decode the block receipts retrieval message
 	var query GetReceiptsPacket
 	if err := msg.Decode(&query); err != nil {
@@ -447,7 +488,7 @@ func answerGetPooledTransactions(backend Backend, query GetPooledTransactionsReq
 			continue
 		}
 		// If known, encode and queue for response packet
-		if encoded, err := rlp.EncodeToBytes(tx); err != nil {
+		if encoded, err := rlp.EncodeToBytes(tx.Tx); err != nil {
 			log.Error("Failed to encode transaction", "err", err)
 		} else {
 			hashes = append(hashes, hash)

@@ -1,8 +1,9 @@
 module github.com/ethereum/go-ethereum
 
-go 1.20
+go 1.19
 
 require (
+<<<<<<< HEAD
 	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v1.2.0
 	github.com/Microsoft/go-winio v0.6.1
 	github.com/VictoriaMetrics/fastcache v1.12.1
@@ -23,6 +24,26 @@ require (
 	github.com/dop251/goja v0.0.0-20230806174421-c933cf95e127
 	github.com/ethereum/c-kzg-4844 v0.4.0
 	github.com/fatih/color v1.13.0
+=======
+	github.com/Azure/azure-sdk-for-go/sdk/storage/azblob v0.3.0
+	github.com/VictoriaMetrics/fastcache v1.6.0
+	github.com/aws/aws-sdk-go-v2 v1.2.0
+	github.com/aws/aws-sdk-go-v2/config v1.1.1
+	github.com/aws/aws-sdk-go-v2/credentials v1.1.1
+	github.com/aws/aws-sdk-go-v2/service/route53 v1.1.1
+	github.com/btcsuite/btcd/btcec/v2 v2.2.0
+	github.com/cespare/cp v0.1.0
+	github.com/cloudflare/cloudflare-go v0.14.0
+	github.com/cockroachdb/pebble v0.0.0-20230209160836-829675f94811
+	github.com/consensys/gnark-crypto v0.10.0
+	github.com/crate-crypto/go-kzg-4844 v0.3.0
+	github.com/davecgh/go-spew v1.1.1
+	github.com/deckarep/golang-set/v2 v2.1.0
+	github.com/docker/docker v1.6.2
+	github.com/dop251/goja v0.0.0-20230605162241-28ee0ee714f3
+	github.com/ethereum/c-kzg-4844 v0.3.0
+	github.com/fatih/color v1.7.0
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	github.com/fjl/gencodec v0.0.0-20230517082657-f9840df7b83e
 	github.com/fjl/memsize v0.0.0-20190710130421-bcb5799ab5e5
 	github.com/fsnotify/fsnotify v1.6.0
@@ -38,10 +59,14 @@ require (
 	github.com/gorilla/websocket v1.4.2
 	github.com/graph-gophers/graphql-go v1.3.0
 	github.com/hashicorp/go-bexpr v0.1.10
-	github.com/holiman/billy v0.0.0-20230718173358-1c7e68d277a7
 	github.com/holiman/bloomfilter/v2 v2.0.3
+<<<<<<< HEAD
 	github.com/holiman/uint256 v1.2.3
 	github.com/huin/goupnp v1.3.0
+=======
+	github.com/holiman/uint256 v1.2.2-0.20230321075855-87b91420868c
+	github.com/huin/goupnp v1.0.3
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	github.com/influxdata/influxdb-client-go/v2 v2.4.0
 	github.com/influxdata/influxdb1-client v0.0.0-20220302092344-a9ab5670611c
 	github.com/jackpal/go-nat-pmp v1.0.2
@@ -58,6 +83,7 @@ require (
 	github.com/rs/cors v1.7.0
 	github.com/shirou/gopsutil v3.21.4-0.20210419000835-c7a38de76ee5+incompatible
 	github.com/status-im/keycard-go v0.2.0
+<<<<<<< HEAD
 	github.com/stretchr/testify v1.8.4
 	github.com/supranational/blst v0.3.11
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
@@ -69,9 +95,22 @@ require (
 	golang.org/x/sync v0.4.0
 	golang.org/x/sys v0.13.0
 	golang.org/x/text v0.13.0
+=======
+	github.com/stretchr/testify v1.8.1
+	github.com/supranational/blst v0.3.11-0.20230406105308-e9dfc5ee724b
+	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
+	github.com/tyler-smith/go-bip39 v1.1.0
+	github.com/urfave/cli/v2 v2.17.2-0.20221006022127-8f469abc00aa
+	golang.org/x/crypto v0.9.0
+	golang.org/x/exp v0.0.0-20230515195305-f3d0a9c9a5cc
+	golang.org/x/sync v0.3.0
+	golang.org/x/sys v0.9.0
+	golang.org/x/text v0.9.0
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	golang.org/x/time v0.3.0
 	golang.org/x/tools v0.13.0
 	gopkg.in/natefinch/lumberjack.v2 v2.0.0
+	gopkg.in/natefinch/npipe.v2 v2.0.0-20160621034901-c1b8fa8bdcce
 	gopkg.in/yaml.v3 v3.0.1
 )
 
@@ -136,9 +175,16 @@ require (
 	github.com/tklauser/go-sysconf v0.3.12 // indirect
 	github.com/tklauser/numcpus v0.6.1 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect
+<<<<<<< HEAD
 	golang.org/x/mod v0.12.0 // indirect
 	golang.org/x/net v0.17.0 // indirect
 	google.golang.org/protobuf v1.27.1 // indirect
+=======
+	golang.org/x/mod v0.10.0 // indirect
+	golang.org/x/net v0.10.0 // indirect
+	golang.org/x/xerrors v0.0.0-20220517211312-f3a8303e98df // indirect
+	google.golang.org/protobuf v1.28.1 // indirect
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
 )

@@ -53,7 +53,7 @@ var (
 					utils.BloomFilterSizeFlag,
 				}, utils.NetworkFlags, utils.DatabaseFlags),
 				Description: `
-agrod snapshot prune-state <state-root>
+geth snapshot prune-state <state-root>
 will prune historical state data with the help of the state snapshot.
 All trie nodes and contract codes that do not belong to the specified
 version state will be deleted from the database. After pruning, only
@@ -61,7 +61,10 @@ two version states are available: genesis and the specific one.
 
 The default pruning target is the HEAD-127 state.
 
-WARNING: it's only supported in hash mode(--state.scheme=hash)".
+WARNING: It's necessary to delete the trie clean cache after the pruning.
+If you specify another directory for the trie clean cache via "--cache.trie.journal"
+during the use of Geth, please also specify it here for correct deletion. Otherwise
+the trie clean cache with default directory will be deleted.
 `,
 			},
 			{
@@ -69,9 +72,13 @@ WARNING: it's only supported in hash mode(--state.scheme=hash)".
 				Usage:     "Recalculate state hash based on the snapshot for verification",
 				ArgsUsage: "<root>",
 				Action:    verifyState,
+<<<<<<< HEAD
 				Flags:     flags.Merge(utils.NetworkFlags, utils.DatabaseFlags),
+=======
+				Flags:     flags.Merge(utils.NetworkFlags, utils.DatabasePathFlags),
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 				Description: `
-agrod snapshot verify-state <state-root>
+geth snapshot verify-state <state-root>
 will traverse the whole accounts and storages set based on the specified
 snapshot and recalculate the root hash of state for verification.
 In other words, this command does the snapshot to trie conversion.
@@ -84,8 +91,13 @@ In other words, this command does the snapshot to trie conversion.
 				Action:    checkDanglingStorage,
 				Flags:     flags.Merge(utils.NetworkFlags, utils.DatabaseFlags),
 				Description: `
+<<<<<<< HEAD
 agrod snapshot check-dangling-storage <state-root> traverses the snap storage
 data, and verifies that all snapshot storage data has a corresponding account.
+=======
+geth snapshot check-dangling-storage <state-root> traverses the snap storage 
+data, and verifies that all snapshot storage data has a corresponding account. 
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 `,
 			},
 			{
@@ -95,8 +107,13 @@ data, and verifies that all snapshot storage data has a corresponding account.
 				Action:    checkAccount,
 				Flags:     flags.Merge(utils.NetworkFlags, utils.DatabaseFlags),
 				Description: `
+<<<<<<< HEAD
 agrod snapshot inspect-account <address | hash> checks all snapshot layers and prints out
 information about the specified address.
+=======
+geth snapshot inspect-account <address | hash> checks all snapshot layers and prints out
+information about the specified address. 
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 `,
 			},
 			{
@@ -104,9 +121,13 @@ information about the specified address.
 				Usage:     "Traverse the state with given root hash and perform quick verification",
 				ArgsUsage: "<root>",
 				Action:    traverseState,
+<<<<<<< HEAD
 				Flags:     flags.Merge(utils.NetworkFlags, utils.DatabaseFlags),
+=======
+				Flags:     flags.Merge(utils.NetworkFlags, utils.DatabasePathFlags),
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 				Description: `
-agrod snapshot traverse-state <state-root>
+geth snapshot traverse-state <state-root>
 will traverse the whole state from the given state root and will abort if any
 referenced trie node or contract code is missing. This command can be used for
 state integrity verification. The default checking target is the HEAD state.
@@ -119,9 +140,13 @@ It's also usable without snapshot enabled.
 				Usage:     "Traverse the state with given root hash and perform detailed verification",
 				ArgsUsage: "<root>",
 				Action:    traverseRawState,
+<<<<<<< HEAD
 				Flags:     flags.Merge(utils.NetworkFlags, utils.DatabaseFlags),
+=======
+				Flags:     flags.Merge(utils.NetworkFlags, utils.DatabasePathFlags),
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 				Description: `
-agrod snapshot traverse-rawstate <state-root>
+geth snapshot traverse-rawstate <state-root>
 will traverse the whole state from the given root and will abort if any referenced
 trie node or contract code is missing. This command can be used for state integrity
 verification. The default checking target is the HEAD state. It's basically identical
@@ -132,7 +157,7 @@ It's also usable without snapshot enabled.
 			},
 			{
 				Name:      "dump",
-				Usage:     "Dump a specific block from storage (same as 'agrod dump' but using snapshots)",
+				Usage:     "Dump a specific block from storage (same as 'geth dump' but using snapshots)",
 				ArgsUsage: "[? <blockHash> | <blockNum>]",
 				Action:    dumpState,
 				Flags: flags.Merge([]cli.Flag{
@@ -140,10 +165,17 @@ It's also usable without snapshot enabled.
 					utils.ExcludeStorageFlag,
 					utils.StartKeyFlag,
 					utils.DumpLimitFlag,
+<<<<<<< HEAD
 				}, utils.NetworkFlags, utils.DatabaseFlags),
 				Description: `
 This command is semantically equivalent to 'agrod dump', but uses the snapshots
 as the backend data source, making this command a lot faster.
+=======
+				}, utils.NetworkFlags, utils.DatabasePathFlags),
+				Description: `
+This command is semantically equivalent to 'geth dump', but uses the snapshots
+as the backend data source, making this command a lot faster. 
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 
 The argument is interpreted as block number or hash. If none is provided, the latest
 block is used.
@@ -162,9 +194,6 @@ func pruneState(ctx *cli.Context) error {
 	chaindb := utils.MakeChainDatabase(ctx, stack, false)
 	defer chaindb.Close()
 
-	if rawdb.ReadStateScheme(chaindb) != rawdb.HashScheme {
-		log.Crit("Offline pruning is not required for path scheme")
-	}
 	prunerconfig := pruner.Config{
 		Datadir:   stack.ResolvePath(""),
 		BloomSize: ctx.Uint64(utils.BloomFilterSizeFlag.Name),
@@ -205,16 +234,20 @@ func verifyState(ctx *cli.Context) error {
 		log.Error("Failed to load head block")
 		return errors.New("no head block")
 	}
+<<<<<<< HEAD
 	triedb := utils.MakeTrieDatabase(ctx, chaindb, false, true, false)
 	defer triedb.Close()
 
 	snapConfig := snapshot.Config{
+=======
+	snapconfig := snapshot.Config{
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 		CacheSize:  256,
 		Recovery:   false,
 		NoBuild:    true,
 		AsyncBuild: false,
 	}
-	snaptree, err := snapshot.New(snapConfig, chaindb, triedb, headBlock.Root())
+	snaptree, err := snapshot.New(snapconfig, chaindb, trie.NewDatabase(chaindb), headBlock.Root())
 	if err != nil {
 		log.Error("Failed to open snapshot tree", "err", err)
 		return err
@@ -258,11 +291,14 @@ func traverseState(ctx *cli.Context) error {
 	defer stack.Close()
 
 	chaindb := utils.MakeChainDatabase(ctx, stack, true)
+<<<<<<< HEAD
 	defer chaindb.Close()
 
 	triedb := utils.MakeTrieDatabase(ctx, chaindb, false, true, false)
 	defer triedb.Close()
 
+=======
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	headBlock := rawdb.ReadHeadBlock(chaindb)
 	if headBlock == nil {
 		log.Error("Failed to load head block")
@@ -287,6 +323,7 @@ func traverseState(ctx *cli.Context) error {
 		root = headBlock.Root()
 		log.Info("Start traversing the state", "root", root, "number", headBlock.NumberU64())
 	}
+	triedb := trie.NewDatabase(chaindb)
 	t, err := trie.NewStateTrie(trie.StateTrieID(root), triedb)
 	if err != nil {
 		log.Error("Failed to open trie", "root", root, "err", err)
@@ -367,11 +404,14 @@ func traverseRawState(ctx *cli.Context) error {
 	defer stack.Close()
 
 	chaindb := utils.MakeChainDatabase(ctx, stack, true)
+<<<<<<< HEAD
 	defer chaindb.Close()
 
 	triedb := utils.MakeTrieDatabase(ctx, chaindb, false, true, false)
 	defer triedb.Close()
 
+=======
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	headBlock := rawdb.ReadHeadBlock(chaindb)
 	if headBlock == nil {
 		log.Error("Failed to load head block")
@@ -396,6 +436,7 @@ func traverseRawState(ctx *cli.Context) error {
 		root = headBlock.Root()
 		log.Info("Start traversing the state", "root", root, "number", headBlock.NumberU64())
 	}
+	triedb := trie.NewDatabase(chaindb)
 	t, err := trie.NewStateTrie(trie.StateTrieID(root), triedb)
 	if err != nil {
 		log.Error("Failed to open trie", "root", root, "err", err)
@@ -416,11 +457,6 @@ func traverseRawState(ctx *cli.Context) error {
 		log.Error("Failed to open iterator", "root", root, "err", err)
 		return err
 	}
-	reader, err := triedb.Reader(root)
-	if err != nil {
-		log.Error("State is non-existent", "root", root)
-		return nil
-	}
 	for accIter.Next(true) {
 		nodes += 1
 		node := accIter.Hash()
@@ -428,7 +464,7 @@ func traverseRawState(ctx *cli.Context) error {
 		// Check the present for non-empty hash node(embedded node doesn't
 		// have their own hash).
 		if node != (common.Hash{}) {
-			blob, _ := reader.Node(common.Hash{}, accIter.Path(), node)
+			blob := rawdb.ReadLegacyTrieNode(chaindb, node)
 			if len(blob) == 0 {
 				log.Error("Missing trie node(account)", "hash", node)
 				return errors.New("missing account")
@@ -469,7 +505,7 @@ func traverseRawState(ctx *cli.Context) error {
 					// Check the presence for non-empty hash node(embedded node doesn't
 					// have their own hash).
 					if node != (common.Hash{}) {
-						blob, _ := reader.Node(common.BytesToHash(accIter.LeafKey()), storageIter.Path(), node)
+						blob := rawdb.ReadLegacyTrieNode(chaindb, node)
 						if len(blob) == 0 {
 							log.Error("Missing trie node(storage)", "hash", node)
 							return errors.New("missing storage")
@@ -533,16 +569,19 @@ func dumpState(ctx *cli.Context) error {
 	if err != nil {
 		return err
 	}
+<<<<<<< HEAD
 	triedb := utils.MakeTrieDatabase(ctx, db, false, true, false)
 	defer triedb.Close()
 
+=======
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	snapConfig := snapshot.Config{
 		CacheSize:  256,
 		Recovery:   false,
 		NoBuild:    true,
 		AsyncBuild: false,
 	}
-	snaptree, err := snapshot.New(snapConfig, db, triedb, root)
+	snaptree, err := snapshot.New(snapConfig, db, trie.NewDatabase(db), root)
 	if err != nil {
 		return err
 	}

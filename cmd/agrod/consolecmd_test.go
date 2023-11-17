@@ -34,10 +34,14 @@ const (
 	httpAPIs = "eth:1.0 net:1.0 rpc:1.0 web3:1.0"
 )
 
-// spawns agrod with the given command line args, using a set of flags to minimise
+// spawns geth with the given command line args, using a set of flags to minimise
 // memory and disk IO. If the args don't set --datadir, the
 // child g gets a temporary data directory.
+<<<<<<< HEAD
 func runMinimalGeth(t *testing.T, args ...string) *testagrod {
+=======
+func runMinimalGeth(t *testing.T, args ...string) *testgeth {
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	// --goerli to make the 'writing genesis to disk' faster (no accounts)
 	// --networkid=1337 to avoid cache bump
 	// --syncmode=full to avoid allocating fast sync bloom
@@ -52,24 +56,36 @@ func runMinimalGeth(t *testing.T, args ...string) *testagrod {
 func TestConsoleWelcome(t *testing.T) {
 	coinbase := "0x8605cdbbdb6d264aa742e77020dcbc58fcdce182"
 
+<<<<<<< HEAD
 	// Start a agrod console, make sure it's cleaned up and terminate the console
 	agrod := runMinimalGeth(t, "--miner.etherbase", coinbase, "console")
+=======
+	// Start a geth console, make sure it's cleaned up and terminate the console
+	geth := runMinimalGeth(t, "--miner.etherbase", coinbase, "console")
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 
 	// Gather all the infos the welcome message needs to contain
-	agrod.SetTemplateFunc("goos", func() string { return runtime.GOOS })
-	agrod.SetTemplateFunc("goarch", func() string { return runtime.GOARCH })
-	agrod.SetTemplateFunc("gover", runtime.Version)
-	agrod.SetTemplateFunc("agrodver", func() string { return params.VersionWithCommit("", "") })
-	agrod.SetTemplateFunc("niltime", func() string {
+	geth.SetTemplateFunc("goos", func() string { return runtime.GOOS })
+	geth.SetTemplateFunc("goarch", func() string { return runtime.GOARCH })
+	geth.SetTemplateFunc("gover", runtime.Version)
+	geth.SetTemplateFunc("gethver", func() string { return params.VersionWithCommit("", "") })
+	geth.SetTemplateFunc("niltime", func() string {
 		return time.Unix(1548854791, 0).Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
 	})
-	agrod.SetTemplateFunc("apis", func() string { return ipcAPIs })
+	geth.SetTemplateFunc("apis", func() string { return ipcAPIs })
 
 	// Verify the actual welcome message to the required template
+<<<<<<< HEAD
 	agrod.Expect(`
 Welcome to the Geth JavaScript console!
 
 instance: Geth/v{{agrodver}}/{{goos}}-{{goarch}}/{{gover}}
+=======
+	geth.Expect(`
+Welcome to the Geth JavaScript console!
+
+instance: Geth/v{{gethver}}/{{goos}}-{{goarch}}/{{gover}}
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 coinbase: {{.Etherbase}}
 at block: 0 ({{niltime}})
  datadir: {{.Datadir}}
@@ -78,7 +94,7 @@ at block: 0 ({{niltime}})
 To exit, press ctrl-d or type exit
 > {{.InputLine "exit"}}
 `)
-	agrod.ExpectExit()
+	geth.ExpectExit()
 }
 
 // Tests that a console can be attached to a running node via various means.
@@ -90,37 +106,46 @@ func TestAttachWelcome(t *testing.T) {
 	)
 	// Configure the instance for IPC attachment
 	if runtime.GOOS == "windows" {
-		ipc = `\\.\pipe\agrod` + strconv.Itoa(trulyRandInt(100000, 999999))
+		ipc = `\\.\pipe\geth` + strconv.Itoa(trulyRandInt(100000, 999999))
 	} else {
-		ipc = filepath.Join(t.TempDir(), "agrod.ipc")
+		ipc = filepath.Join(t.TempDir(), "geth.ipc")
 	}
 	// And HTTP + WS attachment
 	p := trulyRandInt(1024, 65533) // Yeah, sometimes this will fail, sorry :P
 	httpPort = strconv.Itoa(p)
 	wsPort = strconv.Itoa(p + 1)
+<<<<<<< HEAD
 	agrod := runMinimalGeth(t, "--miner.etherbase", "0x8605cdbbdb6d264aa742e77020dcbc58fcdce182",
+=======
+	geth := runMinimalGeth(t, "--miner.etherbase", "0x8605cdbbdb6d264aa742e77020dcbc58fcdce182",
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 		"--ipcpath", ipc,
 		"--http", "--http.port", httpPort,
 		"--ws", "--ws.port", wsPort)
 	t.Run("ipc", func(t *testing.T) {
 		waitForEndpoint(t, ipc, 3*time.Second)
-		testAttachWelcome(t, agrod, "ipc:"+ipc, ipcAPIs)
+		testAttachWelcome(t, geth, "ipc:"+ipc, ipcAPIs)
 	})
 	t.Run("http", func(t *testing.T) {
 		endpoint := "http://127.0.0.1:" + httpPort
 		waitForEndpoint(t, endpoint, 3*time.Second)
-		testAttachWelcome(t, agrod, endpoint, httpAPIs)
+		testAttachWelcome(t, geth, endpoint, httpAPIs)
 	})
 	t.Run("ws", func(t *testing.T) {
 		endpoint := "ws://127.0.0.1:" + wsPort
 		waitForEndpoint(t, endpoint, 3*time.Second)
-		testAttachWelcome(t, agrod, endpoint, httpAPIs)
+		testAttachWelcome(t, geth, endpoint, httpAPIs)
 	})
-	agrod.Kill()
+	geth.Kill()
 }
 
+<<<<<<< HEAD
 func testAttachWelcome(t *testing.T, agrod *testagrod, endpoint, apis string) {
 	// Attach to a running agrod node and terminate immediately
+=======
+func testAttachWelcome(t *testing.T, geth *testgeth, endpoint, apis string) {
+	// Attach to a running geth node and terminate immediately
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	attach := runGeth(t, "attach", endpoint)
 	defer attach.ExpectExit()
 	attach.CloseStdin()
@@ -129,20 +154,24 @@ func testAttachWelcome(t *testing.T, agrod *testagrod, endpoint, apis string) {
 	attach.SetTemplateFunc("goos", func() string { return runtime.GOOS })
 	attach.SetTemplateFunc("goarch", func() string { return runtime.GOARCH })
 	attach.SetTemplateFunc("gover", runtime.Version)
-	attach.SetTemplateFunc("agrodver", func() string { return params.VersionWithCommit("", "") })
-	attach.SetTemplateFunc("etherbase", func() string { return agrod.Etherbase })
+	attach.SetTemplateFunc("gethver", func() string { return params.VersionWithCommit("", "") })
+	attach.SetTemplateFunc("etherbase", func() string { return geth.Etherbase })
 	attach.SetTemplateFunc("niltime", func() string {
 		return time.Unix(1548854791, 0).Format("Mon Jan 02 2006 15:04:05 GMT-0700 (MST)")
 	})
 	attach.SetTemplateFunc("ipc", func() bool { return strings.HasPrefix(endpoint, "ipc") })
-	attach.SetTemplateFunc("datadir", func() string { return agrod.Datadir })
+	attach.SetTemplateFunc("datadir", func() string { return geth.Datadir })
 	attach.SetTemplateFunc("apis", func() string { return apis })
 
 	// Verify the actual welcome message to the required template
 	attach.Expect(`
 Welcome to the Geth JavaScript console!
 
+<<<<<<< HEAD
 instance: Geth/v{{agrodver}}/{{goos}}-{{goarch}}/{{gover}}
+=======
+instance: Geth/v{{gethver}}/{{goos}}-{{goarch}}/{{gover}}
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 coinbase: {{etherbase}}
 at block: 0 ({{niltime}}){{if ipc}}
  datadir: {{datadir}}{{end}}

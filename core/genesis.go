@@ -60,12 +60,10 @@ type Genesis struct {
 
 	// These fields are used for consensus tests. Please don't use them
 	// in actual genesis blocks.
-	Number        uint64      `json:"number"`
-	GasUsed       uint64      `json:"gasUsed"`
-	ParentHash    common.Hash `json:"parentHash"`
-	BaseFee       *big.Int    `json:"baseFeePerGas"` // EIP-1559
-	ExcessBlobGas *uint64     `json:"excessBlobGas"` // EIP-4844
-	BlobGasUsed   *uint64     `json:"blobGasUsed"`   // EIP-4844
+	Number     uint64      `json:"number"`
+	GasUsed    uint64      `json:"gasUsed"`
+	ParentHash common.Hash `json:"parentHash"`
+	BaseFee    *big.Int    `json:"baseFeePerGas"`
 }
 
 func ReadGenesis(db ethdb.Database) (*Genesis, error) {
@@ -99,9 +97,6 @@ func ReadGenesis(db ethdb.Database) (*Genesis, error) {
 	genesis.Difficulty = genesisHeader.Difficulty
 	genesis.Mixhash = genesisHeader.MixDigest
 	genesis.Coinbase = genesisHeader.Coinbase
-	genesis.BaseFee = genesisHeader.BaseFee
-	genesis.ExcessBlobGas = genesisHeader.ExcessBlobGas
-	genesis.BlobGasUsed = genesisHeader.BlobGasUsed
 
 	return &genesis, nil
 }
@@ -150,7 +145,7 @@ func (ga *GenesisAlloc) hash(isVerkle bool) (common.Hash, error) {
 			statedb.SetState(addr, key, value)
 		}
 	}
-	return statedb.Commit(0, false)
+	return statedb.Commit(false)
 }
 
 // flush is very similar with hash, but the main difference is all the generated
@@ -171,7 +166,7 @@ func (ga *GenesisAlloc) flush(db ethdb.Database, triedb *trie.Database, blockhas
 			statedb.SetState(addr, key, value)
 		}
 	}
-	root, err := statedb.Commit(0, false)
+	root, err := statedb.Commit(false)
 	if err != nil {
 		return err
 	}
@@ -201,17 +196,15 @@ type GenesisAccount struct {
 
 // field type overrides for gencodec
 type genesisSpecMarshaling struct {
-	Nonce         math.HexOrDecimal64
-	Timestamp     math.HexOrDecimal64
-	ExtraData     hexutil.Bytes
-	GasLimit      math.HexOrDecimal64
-	GasUsed       math.HexOrDecimal64
-	Number        math.HexOrDecimal64
-	Difficulty    *math.HexOrDecimal256
-	Alloc         map[common.UnprefixedAddress]GenesisAccount
-	BaseFee       *math.HexOrDecimal256
-	ExcessBlobGas *math.HexOrDecimal64
-	BlobGasUsed   *math.HexOrDecimal64
+	Nonce      math.HexOrDecimal64
+	Timestamp  math.HexOrDecimal64
+	ExtraData  hexutil.Bytes
+	GasLimit   math.HexOrDecimal64
+	GasUsed    math.HexOrDecimal64
+	Number     math.HexOrDecimal64
+	Difficulty *math.HexOrDecimal256
+	BaseFee    *math.HexOrDecimal256
+	Alloc      map[common.UnprefixedAddress]GenesisAccount
 }
 
 type genesisAccountMarshaling struct {
@@ -305,12 +298,10 @@ func SetupGenesisBlockWithOverride(db ethdb.Database, triedb *trie.Database, gen
 		}
 		return genesis.Config, block.Hash(), nil
 	}
-	// The genesis block is present(perhaps in ancient database) while the
-	// state database is not initialized yet. It can happen that the node
-	// is initialized with an external ancient store. Commit genesis state
-	// in this case.
+	// We have the genesis block in database(perhaps in ancient database)
+	// but the corresponding state is missing.
 	header := rawdb.ReadHeader(db, stored, 0)
-	if header.Root != types.EmptyRootHash && !triedb.Initialized(header.Root) {
+	if header.Root != types.EmptyRootHash && !rawdb.HasLegacyTrieNode(db, header.Root) {
 		if genesis == nil {
 			genesis = DefaultGenesisBlock()
 		}
@@ -461,6 +452,7 @@ func (g *Genesis) ToBlock() *types.Block {
 		}
 	}
 	var withdrawals []*types.Withdrawal
+<<<<<<< HEAD
 	if conf := g.Config; conf != nil {
 		num := big.NewInt(int64(g.Number))
 		if conf.IsShanghai(num, g.Timestamp) {
@@ -482,6 +474,11 @@ func (g *Genesis) ToBlock() *types.Block {
 				head.BlobGasUsed = new(uint64)
 			}
 		}
+=======
+	if g.Config != nil && g.Config.IsShanghai(big.NewInt(int64(g.Number)), g.Timestamp) {
+		head.WithdrawalsHash = &types.EmptyWithdrawalsHash
+		withdrawals = make([]*types.Withdrawal, 0)
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	}
 	return types.NewBlock(head, nil, nil, nil, trie.NewStackTrie(nil)).WithWithdrawals(withdrawals)
 }
@@ -522,8 +519,10 @@ func (g *Genesis) Commit(db ethdb.Database, triedb *trie.Database) (*types.Block
 
 // MustCommit writes the genesis block and state to db, panicking on error.
 // The block is committed as the canonical head block.
-func (g *Genesis) MustCommit(db ethdb.Database, triedb *trie.Database) *types.Block {
-	block, err := g.Commit(db, triedb)
+// Note the state changes will be committed in hash-based scheme, use Commit
+// if path-scheme is preferred.
+func (g *Genesis) MustCommit(db ethdb.Database) *types.Block {
+	block, err := g.Commit(db, trie.NewDatabase(db))
 	if err != nil {
 		panic(err)
 	}

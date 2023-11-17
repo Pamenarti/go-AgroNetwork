@@ -35,6 +35,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/eth/catalyst"
+	ethcatalyst "github.com/ethereum/go-ethereum/eth/catalyst"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
 	"github.com/ethereum/go-ethereum/internal/ethapi"
@@ -91,14 +92,14 @@ type ethstatsConfig struct {
 	URL string `toml:",omitempty"`
 }
 
-type agrodConfig struct {
+type gethConfig struct {
 	Eth      ethconfig.Config
 	Node     node.Config
 	Ethstats ethstatsConfig
 	Metrics  metrics.Config
 }
 
-func loadConfig(file string, cfg *agrodConfig) error {
+func loadConfig(file string, cfg *gethConfig) error {
 	f, err := os.Open(file)
 	if err != nil {
 		return err
@@ -120,15 +121,15 @@ func defaultNodeConfig() node.Config {
 	cfg.Version = params.VersionWithCommit(git.Commit, git.Date)
 	cfg.HTTPModules = append(cfg.HTTPModules, "eth")
 	cfg.WSModules = append(cfg.WSModules, "eth")
-	cfg.IPCPath = "agrod.ipc"
+	cfg.IPCPath = "geth.ipc"
 	return cfg
 }
 
-// loadBaseConfig loads the agrodConfig based on the given command line
+// loadBaseConfig loads the gethConfig based on the given command line
 // parameters and config file.
-func loadBaseConfig(ctx *cli.Context) agrodConfig {
+func loadBaseConfig(ctx *cli.Context) gethConfig {
 	// Load defaults.
-	cfg := agrodConfig{
+	cfg := gethConfig{
 		Eth:     ethconfig.Defaults,
 		Node:    defaultNodeConfig(),
 		Metrics: metrics.DefaultConfig,
@@ -146,8 +147,8 @@ func loadBaseConfig(ctx *cli.Context) agrodConfig {
 	return cfg
 }
 
-// makeConfigNode loads agrod configuration and creates a blank node instance.
-func makeConfigNode(ctx *cli.Context) (*node.Node, agrodConfig) {
+// makeConfigNode loads geth configuration and creates a blank node instance.
+func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	cfg := loadBaseConfig(ctx)
 	stack, err := node.New(&cfg.Node)
 	if err != nil {
@@ -167,7 +168,7 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, agrodConfig) {
 	return stack, cfg
 }
 
-// makeFullNode loads agrod configuration and creates the Ethereum backend.
+// makeFullNode loads geth configuration and creates the Ethereum backend.
 func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	stack, cfg := makeConfigNode(ctx)
 	if ctx.IsSet(utils.OverrideCancun.Name) {
@@ -223,7 +224,7 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 		catalyst.RegisterSimulatedBeaconAPIs(stack, simBeacon)
 		stack.RegisterLifecycle(simBeacon)
 	} else if cfg.Eth.SyncMode != downloader.LightSync {
-		err := catalyst.Register(stack, eth)
+		err := ethcatalyst.Register(stack, eth)
 		if err != nil {
 			utils.Fatalf("failed to register catalyst service: %v", err)
 		}
@@ -260,7 +261,7 @@ func dumpConfig(ctx *cli.Context) error {
 	return nil
 }
 
-func applyMetricConfig(ctx *cli.Context, cfg *agrodConfig) {
+func applyMetricConfig(ctx *cli.Context, cfg *gethConfig) {
 	if ctx.IsSet(utils.MetricsEnabledFlag.Name) {
 		cfg.Metrics.Enabled = ctx.Bool(utils.MetricsEnabledFlag.Name)
 	}

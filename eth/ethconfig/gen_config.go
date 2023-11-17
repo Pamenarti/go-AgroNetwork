@@ -7,7 +7,6 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core"
-	"github.com/ethereum/go-ethereum/core/txpool/blobpool"
 	"github.com/ethereum/go-ethereum/core/txpool/legacypool"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
@@ -25,9 +24,6 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		NoPruning               bool
 		NoPrefetch              bool
 		TxLookupLimit           uint64                 `toml:",omitempty"`
-		TransactionHistory      uint64                 `toml:",omitempty"`
-		StateHistory            uint64                 `toml:",omitempty"`
-		StateScheme             string                 `toml:",omitempty"`
 		RequiredBlocks          map[uint64]common.Hash `toml:"-"`
 		LightServ               int                    `toml:",omitempty"`
 		LightIngress            int                    `toml:",omitempty"`
@@ -35,6 +31,9 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		LightPeers              int                    `toml:",omitempty"`
 		LightNoPrune            bool                   `toml:",omitempty"`
 		LightNoSyncServe        bool                   `toml:",omitempty"`
+		UltraLightServers       []string               `toml:",omitempty"`
+		UltraLightFraction      int                    `toml:",omitempty"`
+		UltraLightOnlyAnnounce  bool                   `toml:",omitempty"`
 		SkipBcVersionCheck      bool                   `toml:"-"`
 		DatabaseHandles         int                    `toml:"-"`
 		DatabaseCache           int
@@ -47,7 +46,6 @@ func (c Config) MarshalTOML() (interface{}, error) {
 		FilterLogCacheSize      int
 		Miner                   miner.Config
 		TxPool                  legacypool.Config
-		BlobPool                blobpool.Config
 		GPO                     gasprice.Config
 		EnablePreimageRecording bool
 		DocRoot                 string `toml:"-"`
@@ -66,9 +64,6 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.NoPruning = c.NoPruning
 	enc.NoPrefetch = c.NoPrefetch
 	enc.TxLookupLimit = c.TxLookupLimit
-	enc.TransactionHistory = c.TransactionHistory
-	enc.StateHistory = c.StateHistory
-	enc.StateScheme = c.StateScheme
 	enc.RequiredBlocks = c.RequiredBlocks
 	enc.LightServ = c.LightServ
 	enc.LightIngress = c.LightIngress
@@ -76,6 +71,9 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.LightPeers = c.LightPeers
 	enc.LightNoPrune = c.LightNoPrune
 	enc.LightNoSyncServe = c.LightNoSyncServe
+	enc.UltraLightServers = c.UltraLightServers
+	enc.UltraLightFraction = c.UltraLightFraction
+	enc.UltraLightOnlyAnnounce = c.UltraLightOnlyAnnounce
 	enc.SkipBcVersionCheck = c.SkipBcVersionCheck
 	enc.DatabaseHandles = c.DatabaseHandles
 	enc.DatabaseCache = c.DatabaseCache
@@ -88,7 +86,6 @@ func (c Config) MarshalTOML() (interface{}, error) {
 	enc.FilterLogCacheSize = c.FilterLogCacheSize
 	enc.Miner = c.Miner
 	enc.TxPool = c.TxPool
-	enc.BlobPool = c.BlobPool
 	enc.GPO = c.GPO
 	enc.EnablePreimageRecording = c.EnablePreimageRecording
 	enc.DocRoot = c.DocRoot
@@ -111,9 +108,6 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		NoPruning               *bool
 		NoPrefetch              *bool
 		TxLookupLimit           *uint64                `toml:",omitempty"`
-		TransactionHistory      *uint64                `toml:",omitempty"`
-		StateHistory            *uint64                `toml:",omitempty"`
-		StateScheme             *string                `toml:",omitempty"`
 		RequiredBlocks          map[uint64]common.Hash `toml:"-"`
 		LightServ               *int                   `toml:",omitempty"`
 		LightIngress            *int                   `toml:",omitempty"`
@@ -121,6 +115,9 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		LightPeers              *int                   `toml:",omitempty"`
 		LightNoPrune            *bool                  `toml:",omitempty"`
 		LightNoSyncServe        *bool                  `toml:",omitempty"`
+		UltraLightServers       []string               `toml:",omitempty"`
+		UltraLightFraction      *int                   `toml:",omitempty"`
+		UltraLightOnlyAnnounce  *bool                  `toml:",omitempty"`
 		SkipBcVersionCheck      *bool                  `toml:"-"`
 		DatabaseHandles         *int                   `toml:"-"`
 		DatabaseCache           *int
@@ -133,7 +130,6 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 		FilterLogCacheSize      *int
 		Miner                   *miner.Config
 		TxPool                  *legacypool.Config
-		BlobPool                *blobpool.Config
 		GPO                     *gasprice.Config
 		EnablePreimageRecording *bool
 		DocRoot                 *string `toml:"-"`
@@ -171,15 +167,6 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	if dec.TxLookupLimit != nil {
 		c.TxLookupLimit = *dec.TxLookupLimit
 	}
-	if dec.TransactionHistory != nil {
-		c.TransactionHistory = *dec.TransactionHistory
-	}
-	if dec.StateHistory != nil {
-		c.StateHistory = *dec.StateHistory
-	}
-	if dec.StateScheme != nil {
-		c.StateScheme = *dec.StateScheme
-	}
 	if dec.RequiredBlocks != nil {
 		c.RequiredBlocks = dec.RequiredBlocks
 	}
@@ -200,6 +187,15 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.LightNoSyncServe != nil {
 		c.LightNoSyncServe = *dec.LightNoSyncServe
+	}
+	if dec.UltraLightServers != nil {
+		c.UltraLightServers = dec.UltraLightServers
+	}
+	if dec.UltraLightFraction != nil {
+		c.UltraLightFraction = *dec.UltraLightFraction
+	}
+	if dec.UltraLightOnlyAnnounce != nil {
+		c.UltraLightOnlyAnnounce = *dec.UltraLightOnlyAnnounce
 	}
 	if dec.SkipBcVersionCheck != nil {
 		c.SkipBcVersionCheck = *dec.SkipBcVersionCheck
@@ -236,9 +232,6 @@ func (c *Config) UnmarshalTOML(unmarshal func(interface{}) error) error {
 	}
 	if dec.TxPool != nil {
 		c.TxPool = *dec.TxPool
-	}
-	if dec.BlobPool != nil {
-		c.BlobPool = *dec.BlobPool
 	}
 	if dec.GPO != nil {
 		c.GPO = *dec.GPO

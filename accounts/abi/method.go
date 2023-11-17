@@ -118,12 +118,11 @@ func NewMethod(name string, rawName string, funType FunctionType, mutability str
 		id = crypto.Keccak256([]byte(sig))[:4]
 	}
 	identity := fmt.Sprintf("function %v", rawName)
-	switch funType {
-	case Fallback:
+	if funType == Fallback {
 		identity = "fallback"
-	case Receive:
+	} else if funType == Receive {
 		identity = "receive"
-	case Constructor:
+	} else if funType == Constructor {
 		identity = "constructor"
 	}
 	var str string

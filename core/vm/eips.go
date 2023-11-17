@@ -27,7 +27,6 @@ import (
 
 var activators = map[int]func(*JumpTable){
 	5656: enable5656,
-	6780: enable6780,
 	3855: enable3855,
 	3860: enable3860,
 	3529: enable3529,
@@ -298,6 +297,7 @@ func enable4844(jt *JumpTable) {
 		maxStack:    maxStack(1, 1),
 	}
 }
+<<<<<<< HEAD
 
 // enable7516 applies EIP-7516 (BLOBBASEFEE opcode)
 func enable7516(jt *JumpTable) {
@@ -319,3 +319,5 @@ func enable6780(jt *JumpTable) {
 		maxStack:    maxStack(1, 0),
 	}
 }
+=======
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)

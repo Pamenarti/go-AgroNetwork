@@ -35,9 +35,9 @@ import (
 	beaconConsensus "github.com/ethereum/go-ethereum/consensus/beacon"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
+	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/crypto/kzg4844"
 	"github.com/ethereum/go-ethereum/eth"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/ethconfig"
@@ -112,7 +112,7 @@ func TestEth2AssembleBlock(t *testing.T) {
 	if err != nil {
 		t.Fatalf("error signing transaction, err=%v", err)
 	}
-	ethservice.TxPool().Add([]*types.Transaction{tx}, true, false)
+	ethservice.TxPool().Add([]*txpool.Transaction{{Tx: tx}}, true, false)
 	blockParams := engine.PayloadAttributes{
 		Timestamp: blocks[9].Time() + 5,
 	}
@@ -149,7 +149,11 @@ func TestEth2AssembleBlockWithAnotherBlocksTxs(t *testing.T) {
 
 	// Put the 10th block's tx in the pool and produce a new block
 	txs := blocks[9].Transactions()
-	api.eth.TxPool().Add(txs, false, true)
+	wrapped := make([]*txpool.Transaction, len(txs))
+	for i, tx := range txs {
+		wrapped[i] = &txpool.Transaction{Tx: tx}
+	}
+	api.eth.TxPool().Add(wrapped, false, true)
 	blockParams := engine.PayloadAttributes{
 		Timestamp: blocks[8].Time() + 5,
 	}
@@ -189,7 +193,11 @@ func TestEth2PrepareAndGetPayload(t *testing.T) {
 
 	// Put the 10th block's tx in the pool and produce a new block
 	txs := blocks[9].Transactions()
-	ethservice.TxPool().Add(txs, true, false)
+	wrapped := make([]*txpool.Transaction, len(txs))
+	for i, tx := range txs {
+		wrapped[i] = &txpool.Transaction{Tx: tx}
+	}
+	ethservice.TxPool().Add(wrapped, true, false)
 	blockParams := engine.PayloadAttributes{
 		Timestamp: blocks[8].Time() + 5,
 	}
@@ -312,7 +320,7 @@ func TestEth2NewBlock(t *testing.T) {
 		statedb, _ := ethservice.BlockChain().StateAt(parent.Root())
 		nonce := statedb.GetNonce(testAddr)
 		tx, _ := types.SignTx(types.NewContractCreation(nonce, new(big.Int), 1000000, big.NewInt(2*params.InitialBaseFee), logCode), types.LatestSigner(ethservice.BlockChain().Config()), testKey)
-		ethservice.TxPool().Add([]*types.Transaction{tx}, true, false)
+		ethservice.TxPool().Add([]*txpool.Transaction{{Tx: tx}}, true, false)
 
 		execData, err := assembleWithTransactions(api, parent.Hash(), &engine.PayloadAttributes{
 			Timestamp: parent.Time() + 5,
@@ -320,7 +328,11 @@ func TestEth2NewBlock(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create the executable data %v", err)
 		}
+<<<<<<< HEAD
 		block, err := engine.ExecutableDataToBlock(*execData, nil, nil)
+=======
+		block, err := engine.ExecutableDataToBlock(*execData)
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 		if err != nil {
 			t.Fatalf("Failed to convert executable data to block %v", err)
 		}
@@ -362,7 +374,11 @@ func TestEth2NewBlock(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to create the executable data %v", err)
 		}
+<<<<<<< HEAD
 		block, err := engine.ExecutableDataToBlock(*execData, nil, nil)
+=======
+		block, err := engine.ExecutableDataToBlock(*execData)
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 		if err != nil {
 			t.Fatalf("Failed to convert executable data to block %v", err)
 		}
@@ -481,7 +497,7 @@ func TestFullAPI(t *testing.T) {
 		statedb, _ := ethservice.BlockChain().StateAt(parent.Root)
 		nonce := statedb.GetNonce(testAddr)
 		tx, _ := types.SignTx(types.NewContractCreation(nonce, new(big.Int), 1000000, big.NewInt(2*params.InitialBaseFee), logCode), types.LatestSigner(ethservice.BlockChain().Config()), testKey)
-		ethservice.TxPool().Add([]*types.Transaction{tx}, true, false)
+		ethservice.TxPool().Add([]*txpool.Transaction{{Tx: tx}}, true, false)
 	}
 
 	setupBlocks(t, ethservice, 10, parent, callback, nil)
@@ -607,7 +623,7 @@ func TestNewPayloadOnInvalidChain(t *testing.T) {
 			GasPrice: big.NewInt(2 * params.InitialBaseFee),
 			Data:     logCode,
 		})
-		ethservice.TxPool().Add([]*types.Transaction{tx}, false, true)
+		ethservice.TxPool().Add([]*txpool.Transaction{{Tx: tx}}, false, true)
 		var (
 			params = engine.PayloadAttributes{
 				Timestamp:             parent.Time + 1,
@@ -995,7 +1011,11 @@ func TestSimultaneousNewBlock(t *testing.T) {
 				t.Fatal(testErr)
 			}
 		}
+<<<<<<< HEAD
 		block, err := engine.ExecutableDataToBlock(*execData, nil, nil)
+=======
+		block, err := engine.ExecutableDataToBlock(*execData)
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 		if err != nil {
 			t.Fatalf("Failed to convert executable data to block %v", err)
 		}
@@ -1285,7 +1305,7 @@ func setupBodies(t *testing.T) (*node.Node, *eth.Ethereum, []*types.Block) {
 		statedb, _ := ethservice.BlockChain().StateAt(parent.Root)
 		nonce := statedb.GetNonce(testAddr)
 		tx, _ := types.SignTx(types.NewContractCreation(nonce, new(big.Int), 1000000, big.NewInt(2*params.InitialBaseFee), logCode), types.LatestSigner(ethservice.BlockChain().Config()), testKey)
-		ethservice.TxPool().Add([]*types.Transaction{tx}, false, false)
+		ethservice.TxPool().Add([]*txpool.Transaction{{Tx: tx}}, true, false)
 	}
 
 	withdrawals := make([][]*types.Withdrawal, 10)
@@ -1521,6 +1541,7 @@ func equalBody(a *types.Body, b *engine.ExecutionPayloadBodyV1) bool {
 	}
 	return reflect.DeepEqual(a.Withdrawals, b.Withdrawals)
 }
+<<<<<<< HEAD
 
 func TestBlockToPayloadWithBlobs(t *testing.T) {
 	header := types.Header{}
@@ -1642,3 +1663,5 @@ func TestParentBeaconBlockRoot(t *testing.T) {
 		t.Fatalf("incorrect root stored: want %s, got %s", *blockParams.BeaconRoot, root)
 	}
 }
+=======
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)

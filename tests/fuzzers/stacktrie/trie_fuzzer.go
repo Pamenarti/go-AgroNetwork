@@ -136,13 +136,19 @@ func (f *fuzzer) fuzz() int {
 	// This spongeDb is used to check the sequence of disk-db-writes
 	var (
 		spongeA = &spongeDb{sponge: sha3.NewLegacyKeccak256()}
-		dbA     = trie.NewDatabase(rawdb.NewDatabase(spongeA), nil)
+		dbA     = trie.NewDatabase(rawdb.NewDatabase(spongeA))
 		trieA   = trie.NewEmpty(dbA)
 		spongeB = &spongeDb{sponge: sha3.NewLegacyKeccak256()}
+<<<<<<< HEAD
 		dbB     = trie.NewDatabase(rawdb.NewDatabase(spongeB), nil)
 
 		options = trie.NewStackTrieOptions().WithWriter(func(path []byte, hash common.Hash, blob []byte) {
 			rawdb.WriteTrieNode(spongeB, common.Hash{}, path, hash, blob, dbB.Scheme())
+=======
+		dbB     = trie.NewDatabase(rawdb.NewDatabase(spongeB))
+		trieB   = trie.NewStackTrie(func(owner common.Hash, path []byte, hash common.Hash, blob []byte) {
+			rawdb.WriteTrieNode(spongeB, owner, path, hash, blob, dbB.Scheme())
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 		})
 		trieB       = trie.NewStackTrie(options)
 		vals        []kv
@@ -178,14 +184,14 @@ func (f *fuzzer) fuzz() int {
 		panic(err)
 	}
 	if nodes != nil {
-		dbA.Update(rootA, types.EmptyRootHash, 0, trienode.NewWithNodeSet(nodes), nil)
+		dbA.Update(rootA, types.EmptyRootHash, trienode.NewWithNodeSet(nodes), nil)
 	}
 	// Flush memdb -> disk (sponge)
 	dbA.Commit(rootA, false)
 
 	// Stacktrie requires sorted insertion
-	slices.SortFunc(vals, func(a, b kv) int {
-		return bytes.Compare(a.k, b.k)
+	slices.SortFunc(vals, func(a, b kv) bool {
+		return bytes.Compare(a.k, b.k) < 0
 	})
 	for _, kv := range vals {
 		if f.debugging {

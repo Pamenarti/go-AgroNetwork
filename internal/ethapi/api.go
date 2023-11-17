@@ -34,7 +34,7 @@ import (
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
+	"github.com/ethereum/go-ethereum/consensus/misc"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -899,34 +899,6 @@ func (s *BlockChainAPI) GetStorageAt(ctx context.Context, address common.Address
 	return res[:], state.Error()
 }
 
-// GetBlockReceipts returns the block receipts for the given block hash or number or tag.
-func (s *BlockChainAPI) GetBlockReceipts(ctx context.Context, blockNrOrHash rpc.BlockNumberOrHash) ([]map[string]interface{}, error) {
-	block, err := s.b.BlockByNumberOrHash(ctx, blockNrOrHash)
-	if block == nil || err != nil {
-		// When the block doesn't exist, the RPC method should return JSON null
-		// as per specification.
-		return nil, nil
-	}
-	receipts, err := s.b.GetReceipts(ctx, block.Hash())
-	if err != nil {
-		return nil, err
-	}
-	txs := block.Transactions()
-	if len(txs) != len(receipts) {
-		return nil, fmt.Errorf("receipts length mismatch: %d vs %d", len(txs), len(receipts))
-	}
-
-	// Derive the sender.
-	signer := types.MakeSigner(s.b.ChainConfig(), block.Number(), block.Time())
-
-	result := make([]map[string]interface{}, len(receipts))
-	for i, receipt := range receipts {
-		result[i] = marshalReceipt(receipt, block.Hash(), block.NumberU64(), signer, txs[i], i)
-	}
-
-	return result, nil
-}
-
 // OverrideAccount indicates the overriding fields of account during the execution
 // of a message call.
 // Note, state and stateDiff can't be specified at the same time. If state is
@@ -1172,30 +1144,12 @@ func (s *BlockChainAPI) Call(ctx context.Context, args TransactionArgs, blockNrO
 	return result.Return(), result.Err
 }
 
-// executeEstimate is a helper that executes the transaction under a given gas limit and returns
-// true if the transaction fails for a reason that might be related to not enough gas. A non-nil
-// error means execution failed due to reasons unrelated to the gas limit.
-func executeEstimate(ctx context.Context, b Backend, args TransactionArgs, state *state.StateDB, header *types.Header, gasCap uint64, gasLimit uint64) (bool, *core.ExecutionResult, error) {
-	args.Gas = (*hexutil.Uint64)(&gasLimit)
-	result, err := doCall(ctx, b, args, state, header, nil, nil, 0, gasCap)
-	if err != nil {
-		if errors.Is(err, core.ErrIntrinsicGas) {
-			return true, nil, nil // Special case, raise gas limit
-		}
-		return true, nil, err // Bail out
-	}
-	return result.Failed(), result, nil
-}
-
-// DoEstimateGas returns the lowest possible gas limit that allows the transaction to run
-// successfully at block `blockNrOrHash`. It returns error if the transaction would revert, or if
-// there are unexpected failures. The gas limit is capped by both `args.Gas` (if non-nil &
-// non-zero) and `gasCap` (if non-zero).
-func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, overrides *StateOverride, gasCap uint64) (hexutil.Uint64, error) {
-	// Binary search the gas limit, as it may need to be higher than the amount used
+func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNrOrHash rpc.BlockNumberOrHash, gasCap uint64) (hexutil.Uint64, error) {
+	// Binary search the gas requirement, as it may be higher than the amount used
 	var (
-		lo uint64 // lowest-known gas limit where tx execution fails
-		hi uint64 // lowest-known gas limit where tx execution succeeds
+		lo  uint64 = params.TxGas - 1
+		hi  uint64
+		cap uint64
 	)
 	// Use zero address if sender unspecified.
 	if args.From == nil {
@@ -1226,17 +1180,12 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 	} else {
 		feeCap = common.Big0
 	}
-
-	state, header, err := b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
-	if state == nil || err != nil {
-		return 0, err
-	}
-	if err := overrides.Apply(state); err != nil {
-		return 0, err
-	}
-
 	// Recap the highest gas limit with account's available balance.
 	if feeCap.BitLen() != 0 {
+		state, _, err := b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+		if err != nil {
+			return 0, err
+		}
 		balance := state.GetBalance(*args.From) // from can't be nil
 		available := new(big.Int).Set(balance)
 		if args.Value != nil {
@@ -1263,13 +1212,26 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 		log.Warn("Caller gas above allowance, capping", "requested", hi, "cap", gasCap)
 		hi = gasCap
 	}
+	cap = hi
 
-	// We first execute the transaction at the highest allowable gas limit, since if this fails we
-	// can return error immediately.
-	failed, result, err := executeEstimate(ctx, b, args, state.Copy(), header, gasCap, hi)
-	if err != nil {
+	// Create a helper to check if a gas allowance results in an executable transaction
+	executable := func(gas uint64, state *state.StateDB, header *types.Header) (bool, *core.ExecutionResult, error) {
+		args.Gas = (*hexutil.Uint64)(&gas)
+
+		result, err := doCall(ctx, b, args, state, header, nil, nil, 0, gasCap)
+		if err != nil {
+			if errors.Is(err, core.ErrIntrinsicGas) {
+				return true, nil, nil // Special case, raise gas limit
+			}
+			return true, nil, err // Bail out
+		}
+		return result.Failed(), result, nil
+	}
+	state, header, err := b.StateAndHeaderByNumberOrHash(ctx, blockNrOrHash)
+	if state == nil || err != nil {
 		return 0, err
 	}
+<<<<<<< HEAD
 	if failed {
 		if result != nil && !errors.Is(result.Err, vm.ErrOutOfGas) {
 			if len(result.Revert()) > 0 {
@@ -1286,19 +1248,18 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 	lo = result.UsedGas - 1
 
 	// Binary search for the smallest gas limit that allows the tx to execute successfully.
+=======
+	// Execute the binary search and hone in on an executable gas limit
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	for lo+1 < hi {
+		s := state.Copy()
 		mid := (hi + lo) / 2
-		if mid > lo*2 {
-			// Most txs don't need much higher gas limit than their gas used, and most txs don't
-			// require near the full block limit of gas, so the selection of where to bisect the
-			// range here is skewed to favor the low side.
-			mid = lo * 2
-		}
-		failed, _, err = executeEstimate(ctx, b, args, state.Copy(), header, gasCap, mid)
+		failed, _, err := executable(mid, s, header)
+
+		// If the error is not nil(consensus error), it means the provided message
+		// call or transaction will never be accepted no matter how much gas it is
+		// assigned. Return the error directly, don't struggle any more.
 		if err != nil {
-			// This should not happen under normal conditions since if we make it this far the
-			// transaction had run without error at least once before.
-			log.Error("execution error in estimate gas", "err", err)
 			return 0, err
 		}
 		if failed {
@@ -1307,20 +1268,34 @@ func DoEstimateGas(ctx context.Context, b Backend, args TransactionArgs, blockNr
 			hi = mid
 		}
 	}
+	// Reject the transaction as invalid if it still fails at the highest allowance
+	if hi == cap {
+		failed, result, err := executable(hi, state, header)
+		if err != nil {
+			return 0, err
+		}
+		if failed {
+			if result != nil && result.Err != vm.ErrOutOfGas {
+				if len(result.Revert()) > 0 {
+					return 0, newRevertError(result)
+				}
+				return 0, result.Err
+			}
+			// Otherwise, the specified gas cap is too low
+			return 0, fmt.Errorf("gas required exceeds allowance (%d)", cap)
+		}
+	}
 	return hexutil.Uint64(hi), nil
 }
 
-// EstimateGas returns the lowest possible gas limit that allows the transaction to run
-// successfully at block `blockNrOrHash`, or the latest block if `blockNrOrHash` is unspecified. It
-// returns error if the transaction would revert or if there are unexpected failures. The returned
-// value is capped by both `args.Gas` (if non-nil & non-zero) and the backend's RPCGasCap
-// configuration (if non-zero).
-func (s *BlockChainAPI) EstimateGas(ctx context.Context, args TransactionArgs, blockNrOrHash *rpc.BlockNumberOrHash, overrides *StateOverride) (hexutil.Uint64, error) {
+// EstimateGas returns an estimate of the amount of gas needed to execute the
+// given transaction against the current pending block.
+func (s *BlockChainAPI) EstimateGas(ctx context.Context, args TransactionArgs, blockNrOrHash *rpc.BlockNumberOrHash) (hexutil.Uint64, error) {
 	bNrOrHash := rpc.BlockNumberOrHashWithNumber(rpc.LatestBlockNumber)
 	if blockNrOrHash != nil {
 		bNrOrHash = *blockNrOrHash
 	}
-	return DoEstimateGas(ctx, s.b, args, bNrOrHash, overrides, s.b.RPCGasCap())
+	return DoEstimateGas(ctx, s.b, args, bNrOrHash, s.b.RPCGasCap())
 }
 
 // RPCMarshalHeader converts the given header to the RPC output .
@@ -1343,12 +1318,15 @@ func RPCMarshalHeader(head *types.Header) map[string]interface{} {
 		"transactionsRoot": head.TxHash,
 		"receiptsRoot":     head.ReceiptHash,
 	}
+
 	if head.BaseFee != nil {
 		result["baseFeePerGas"] = (*hexutil.Big)(head.BaseFee)
 	}
+
 	if head.WithdrawalsHash != nil {
 		result["withdrawalsRoot"] = head.WithdrawalsHash
 	}
+<<<<<<< HEAD
 	if head.BlobGasUsed != nil {
 		result["blobGasUsed"] = hexutil.Uint64(*head.BlobGasUsed)
 	}
@@ -1358,6 +1336,9 @@ func RPCMarshalHeader(head *types.Header) map[string]interface{} {
 	if head.ParentBeaconRoot != nil {
 		result["parentBeaconBlockRoot"] = head.ParentBeaconRoot
 	}
+=======
+
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	return result
 }
 
@@ -1416,28 +1397,25 @@ func (s *BlockChainAPI) rpcMarshalBlock(ctx context.Context, b *types.Block, inc
 
 // RPCTransaction represents a transaction that will serialize to the RPC representation of a transaction
 type RPCTransaction struct {
-	BlockHash           *common.Hash      `json:"blockHash"`
-	BlockNumber         *hexutil.Big      `json:"blockNumber"`
-	From                common.Address    `json:"from"`
-	Gas                 hexutil.Uint64    `json:"gas"`
-	GasPrice            *hexutil.Big      `json:"gasPrice"`
-	GasFeeCap           *hexutil.Big      `json:"maxFeePerGas,omitempty"`
-	GasTipCap           *hexutil.Big      `json:"maxPriorityFeePerGas,omitempty"`
-	MaxFeePerBlobGas    *hexutil.Big      `json:"maxFeePerBlobGas,omitempty"`
-	Hash                common.Hash       `json:"hash"`
-	Input               hexutil.Bytes     `json:"input"`
-	Nonce               hexutil.Uint64    `json:"nonce"`
-	To                  *common.Address   `json:"to"`
-	TransactionIndex    *hexutil.Uint64   `json:"transactionIndex"`
-	Value               *hexutil.Big      `json:"value"`
-	Type                hexutil.Uint64    `json:"type"`
-	Accesses            *types.AccessList `json:"accessList,omitempty"`
-	ChainID             *hexutil.Big      `json:"chainId,omitempty"`
-	BlobVersionedHashes []common.Hash     `json:"blobVersionedHashes,omitempty"`
-	V                   *hexutil.Big      `json:"v"`
-	R                   *hexutil.Big      `json:"r"`
-	S                   *hexutil.Big      `json:"s"`
-	YParity             *hexutil.Uint64   `json:"yParity,omitempty"`
+	BlockHash        *common.Hash      `json:"blockHash"`
+	BlockNumber      *hexutil.Big      `json:"blockNumber"`
+	From             common.Address    `json:"from"`
+	Gas              hexutil.Uint64    `json:"gas"`
+	GasPrice         *hexutil.Big      `json:"gasPrice"`
+	GasFeeCap        *hexutil.Big      `json:"maxFeePerGas,omitempty"`
+	GasTipCap        *hexutil.Big      `json:"maxPriorityFeePerGas,omitempty"`
+	Hash             common.Hash       `json:"hash"`
+	Input            hexutil.Bytes     `json:"input"`
+	Nonce            hexutil.Uint64    `json:"nonce"`
+	To               *common.Address   `json:"to"`
+	TransactionIndex *hexutil.Uint64   `json:"transactionIndex"`
+	Value            *hexutil.Big      `json:"value"`
+	Type             hexutil.Uint64    `json:"type"`
+	Accesses         *types.AccessList `json:"accessList,omitempty"`
+	ChainID          *hexutil.Big      `json:"chainId,omitempty"`
+	V                *hexutil.Big      `json:"v"`
+	R                *hexutil.Big      `json:"r"`
+	S                *hexutil.Big      `json:"s"`
 }
 
 // newRPCTransaction returns a transaction that will serialize to the RPC
@@ -1465,57 +1443,35 @@ func newRPCTransaction(tx *types.Transaction, blockHash common.Hash, blockNumber
 		result.BlockNumber = (*hexutil.Big)(new(big.Int).SetUint64(blockNumber))
 		result.TransactionIndex = (*hexutil.Uint64)(&index)
 	}
-
 	switch tx.Type() {
 	case types.LegacyTxType:
 		// if a legacy transaction has an EIP-155 chain id, include it explicitly
 		if id := tx.ChainId(); id.Sign() != 0 {
 			result.ChainID = (*hexutil.Big)(id)
 		}
-
 	case types.AccessListTxType:
 		al := tx.AccessList()
-		yparity := hexutil.Uint64(v.Sign())
 		result.Accesses = &al
 		result.ChainID = (*hexutil.Big)(tx.ChainId())
-		result.YParity = &yparity
-
 	case types.DynamicFeeTxType:
 		al := tx.AccessList()
-		yparity := hexutil.Uint64(v.Sign())
 		result.Accesses = &al
 		result.ChainID = (*hexutil.Big)(tx.ChainId())
-		result.YParity = &yparity
 		result.GasFeeCap = (*hexutil.Big)(tx.GasFeeCap())
 		result.GasTipCap = (*hexutil.Big)(tx.GasTipCap())
 		// if the transaction has been mined, compute the effective gas price
 		if baseFee != nil && blockHash != (common.Hash{}) {
-			// price = min(gasTipCap + baseFee, gasFeeCap)
-			result.GasPrice = (*hexutil.Big)(effectiveGasPrice(tx, baseFee))
+			// price = min(tip, gasFeeCap - baseFee) + baseFee
+			price := math.BigMin(new(big.Int).Add(tx.GasTipCap(), baseFee), tx.GasFeeCap())
+			result.GasPrice = (*hexutil.Big)(price)
 		} else {
 			result.GasPrice = (*hexutil.Big)(tx.GasFeeCap())
 		}
-
-	case types.BlobTxType:
-		al := tx.AccessList()
-		yparity := hexutil.Uint64(v.Sign())
-		result.Accesses = &al
-		result.ChainID = (*hexutil.Big)(tx.ChainId())
-		result.YParity = &yparity
-		result.GasFeeCap = (*hexutil.Big)(tx.GasFeeCap())
-		result.GasTipCap = (*hexutil.Big)(tx.GasTipCap())
-		// if the transaction has been mined, compute the effective gas price
-		if baseFee != nil && blockHash != (common.Hash{}) {
-			result.GasPrice = (*hexutil.Big)(effectiveGasPrice(tx, baseFee))
-		} else {
-			result.GasPrice = (*hexutil.Big)(tx.GasFeeCap())
-		}
-		result.MaxFeePerBlobGas = (*hexutil.Big)(tx.BlobGasFeeCap())
-		result.BlobVersionedHashes = tx.BlobHashes()
 	}
 	return result
 }
 
+<<<<<<< HEAD
 // effectiveGasPrice computes the transaction gas fee, based on the given basefee value.
 //
 //	price = min(gasTipCap + baseFee, gasFeeCap)
@@ -1528,6 +1484,8 @@ func effectiveGasPrice(tx *types.Transaction, baseFee *big.Int) *big.Int {
 	return fee
 }
 
+=======
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 // NewRPCPendingTransaction returns a pending transaction that will serialize to the RPC representation
 func NewRPCPendingTransaction(tx *types.Transaction, current *types.Header, config *params.ChainConfig) *RPCTransaction {
 	var (
@@ -1536,7 +1494,7 @@ func NewRPCPendingTransaction(tx *types.Transaction, current *types.Header, conf
 		blockTime   = uint64(0)
 	)
 	if current != nil {
-		baseFee = eip1559.CalcBaseFee(config, current)
+		baseFee = misc.CalcBaseFee(config, current)
 		blockNumber = current.Number.Uint64()
 		blockTime = current.Time
 	}
@@ -1799,18 +1757,13 @@ func (s *TransactionAPI) GetTransactionReceipt(ctx context.Context, hash common.
 
 	// Derive the sender.
 	signer := types.MakeSigner(s.b.ChainConfig(), header.Number, header.Time)
-	return marshalReceipt(receipt, blockHash, blockNumber, signer, tx, int(index)), nil
-}
-
-// marshalReceipt marshals a transaction receipt into a JSON object.
-func marshalReceipt(receipt *types.Receipt, blockHash common.Hash, blockNumber uint64, signer types.Signer, tx *types.Transaction, txIndex int) map[string]interface{} {
 	from, _ := types.Sender(signer, tx)
 
 	fields := map[string]interface{}{
 		"blockHash":         blockHash,
 		"blockNumber":       hexutil.Uint64(blockNumber),
-		"transactionHash":   tx.Hash(),
-		"transactionIndex":  hexutil.Uint64(txIndex),
+		"transactionHash":   hash,
+		"transactionIndex":  hexutil.Uint64(index),
 		"from":              from,
 		"to":                tx.To(),
 		"gasUsed":           hexutil.Uint64(receipt.GasUsed),
@@ -1832,16 +1785,11 @@ func marshalReceipt(receipt *types.Receipt, blockHash common.Hash, blockNumber u
 		fields["logs"] = []*types.Log{}
 	}
 
-	if tx.Type() == types.BlobTxType {
-		fields["blobGasUsed"] = hexutil.Uint64(receipt.BlobGasUsed)
-		fields["blobGasPrice"] = (*hexutil.Big)(receipt.BlobGasPrice)
-	}
-
 	// If the ContractAddress is 20 0x0 bytes, assume it is not a contract creation
 	if receipt.ContractAddress != (common.Address{}) {
 		fields["contractAddress"] = receipt.ContractAddress
 	}
-	return fields
+	return fields, nil
 }
 
 // sign is a helper function that signs a transaction with the private key of the given address.

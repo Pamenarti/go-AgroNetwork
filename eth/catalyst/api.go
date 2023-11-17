@@ -82,10 +82,8 @@ var caps = []string{
 	"engine_exchangeTransitionConfigurationV1",
 	"engine_getPayloadV1",
 	"engine_getPayloadV2",
-	"engine_getPayloadV3",
 	"engine_newPayloadV1",
 	"engine_newPayloadV2",
-	"engine_newPayloadV3",
 	"engine_getPayloadBodiesByHashV1",
 	"engine_getPayloadBodiesByRangeV1",
 }
@@ -421,7 +419,7 @@ func (api *ConsensusAPI) ExchangeTransitionConfigurationV1(config engine.Transit
 
 // GetPayloadV1 returns a cached payload by id.
 func (api *ConsensusAPI) GetPayloadV1(payloadID engine.PayloadID) (*engine.ExecutableData, error) {
-	data, err := api.getPayload(payloadID, false)
+	data, err := api.getPayload(payloadID)
 	if err != nil {
 		return nil, err
 	}
@@ -430,17 +428,27 @@ func (api *ConsensusAPI) GetPayloadV1(payloadID engine.PayloadID) (*engine.Execu
 
 // GetPayloadV2 returns a cached payload by id.
 func (api *ConsensusAPI) GetPayloadV2(payloadID engine.PayloadID) (*engine.ExecutionPayloadEnvelope, error) {
-	return api.getPayload(payloadID, false)
+	return api.getPayload(payloadID)
 }
 
-// GetPayloadV3 returns a cached payload by id.
-func (api *ConsensusAPI) GetPayloadV3(payloadID engine.PayloadID) (*engine.ExecutionPayloadEnvelope, error) {
-	return api.getPayload(payloadID, false)
-}
-
-func (api *ConsensusAPI) getPayload(payloadID engine.PayloadID, full bool) (*engine.ExecutionPayloadEnvelope, error) {
+func (api *ConsensusAPI) getPayload(payloadID engine.PayloadID) (*engine.ExecutionPayloadEnvelope, error) {
 	log.Trace("Engine API request received", "method", "GetPayload", "id", payloadID)
-	data := api.localBlocks.get(payloadID, full)
+	data := api.localBlocks.get(payloadID, false)
+	if data == nil {
+		return nil, engine.UnknownPayload
+	}
+	return data, nil
+}
+
+// getFullPayload returns a cached payload by it. The difference is that this
+// function always expects a non-empty payload, but can also return empty one
+// if no transaction is executable.
+//
+// Note, this function is not a part of standard engine API, meant to be used
+// by consensus client mock in dev mode.
+func (api *ConsensusAPI) getFullPayload(payloadID engine.PayloadID) (*engine.ExecutionPayloadEnvelope, error) {
+	log.Trace("Engine API request received", "method", "GetFullPayload", "id", payloadID)
+	data := api.localBlocks.get(payloadID, true)
 	if data == nil {
 		return nil, engine.UnknownPayload
 	}
@@ -452,7 +460,11 @@ func (api *ConsensusAPI) NewPayloadV1(params engine.ExecutableData) (engine.Payl
 	if params.Withdrawals != nil {
 		return engine.PayloadStatusV1{Status: engine.INVALID}, engine.InvalidParams.With(errors.New("withdrawals not supported in V1"))
 	}
+<<<<<<< HEAD
 	return api.newPayload(params, nil, nil)
+=======
+	return api.newPayload(params)
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 }
 
 // NewPayloadV2 creates an Eth1 block, inserts it in the chain, and returns the status of the chain.
@@ -464,6 +476,7 @@ func (api *ConsensusAPI) NewPayloadV2(params engine.ExecutableData) (engine.Payl
 	} else if params.Withdrawals != nil {
 		return engine.PayloadStatusV1{Status: engine.INVALID}, engine.InvalidParams.With(errors.New("non-nil withdrawals pre-shanghai"))
 	}
+<<<<<<< HEAD
 	if api.eth.BlockChain().Config().IsCancun(new(big.Int).SetUint64(params.Number), params.Timestamp) {
 		return engine.PayloadStatusV1{Status: engine.INVALID}, engine.InvalidParams.With(errors.New("newPayloadV2 called post-cancun"))
 	}
@@ -493,6 +506,12 @@ func (api *ConsensusAPI) NewPayloadV3(params engine.ExecutableData, versionedHas
 }
 
 func (api *ConsensusAPI) newPayload(params engine.ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash) (engine.PayloadStatusV1, error) {
+=======
+	return api.newPayload(params)
+}
+
+func (api *ConsensusAPI) newPayload(params engine.ExecutableData) (engine.PayloadStatusV1, error) {
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	// The locking here is, strictly, not required. Without these locks, this can happen:
 	//
 	// 1. NewPayload( execdata-N ) is invoked from the CL. It goes all the way down to
@@ -510,10 +529,17 @@ func (api *ConsensusAPI) newPayload(params engine.ExecutableData, versionedHashe
 	defer api.newPayloadLock.Unlock()
 
 	log.Trace("Engine API request received", "method", "NewPayload", "number", params.Number, "hash", params.BlockHash)
+<<<<<<< HEAD
 	block, err := engine.ExecutableDataToBlock(params, versionedHashes, beaconRoot)
 	if err != nil {
 		log.Warn("Invalid NewPayload params", "params", params, "error", err)
 		return api.invalid(err, nil), nil
+=======
+	block, err := engine.ExecutableDataToBlock(params)
+	if err != nil {
+		log.Debug("Invalid NewPayload params", "params", params, "error", err)
+		return engine.PayloadStatusV1{Status: engine.INVALID}, nil
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	}
 	// Stash away the last update to warn the user if the beacon client goes offline
 	api.lastNewPayloadLock.Lock()
@@ -774,8 +800,8 @@ func (api *ConsensusAPI) ExchangeCapabilities([]string) []string {
 	return caps
 }
 
-// GetPayloadBodiesByHashV1 implements engine_getPayloadBodiesByHashV1 which allows for retrieval of a list
-// of block bodies by the engine api.
+// GetPayloadBodiesByHashV1 implements engine_getPayloadBodiesByHashV1 which
+// allows for retrieval of a list of block bodies by the engine api.
 func (api *ConsensusAPI) GetPayloadBodiesByHashV1(hashes []common.Hash) []*engine.ExecutionPayloadBodyV1 {
 	bodies := make([]*engine.ExecutionPayloadBodyV1, len(hashes))
 	for i, hash := range hashes {
@@ -785,8 +811,8 @@ func (api *ConsensusAPI) GetPayloadBodiesByHashV1(hashes []common.Hash) []*engin
 	return bodies
 }
 
-// GetPayloadBodiesByRangeV1 implements engine_getPayloadBodiesByRangeV1 which allows for retrieval of a range
-// of block bodies by the engine api.
+// GetPayloadBodiesByRangeV1 implements engine_getPayloadBodiesByRangeV1 which
+// allows for retrieval of a range of block bodies by the engine api.
 func (api *ConsensusAPI) GetPayloadBodiesByRangeV1(start, count hexutil.Uint64) ([]*engine.ExecutionPayloadBodyV1, error) {
 	if start == 0 || count == 0 {
 		return nil, engine.InvalidParams.With(fmt.Errorf("invalid start or count, start: %v count: %v", start, count))
@@ -812,23 +838,19 @@ func getBody(block *types.Block) *engine.ExecutionPayloadBodyV1 {
 	if block == nil {
 		return nil
 	}
-
 	var (
 		body        = block.Body()
 		txs         = make([]hexutil.Bytes, len(body.Transactions))
 		withdrawals = body.Withdrawals
 	)
-
 	for j, tx := range body.Transactions {
 		data, _ := tx.MarshalBinary()
 		txs[j] = hexutil.Bytes(data)
 	}
-
 	// Post-shanghai withdrawals MUST be set to empty slice instead of nil
 	if withdrawals == nil && block.Header().WithdrawalsHash != nil {
 		withdrawals = make([]*types.Withdrawal, 0)
 	}
-
 	return &engine.ExecutionPayloadBodyV1{
 		TransactionData: txs,
 		Withdrawals:     withdrawals,

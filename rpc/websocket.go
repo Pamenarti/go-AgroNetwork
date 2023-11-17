@@ -282,21 +282,29 @@ type websocketCodec struct {
 	conn *websocket.Conn
 	info PeerInfo
 
-	wg           sync.WaitGroup
-	pingReset    chan struct{}
-	pongReceived chan struct{}
+	wg        sync.WaitGroup
+	pingReset chan struct{}
 }
 
+<<<<<<< HEAD
 func newWebsocketCodec(conn *websocket.Conn, host string, req http.Header, readLimit int64) ServerCodec {
 	conn.SetReadLimit(readLimit)
+=======
+func newWebsocketCodec(conn *websocket.Conn, host string, req http.Header) ServerCodec {
+	conn.SetReadLimit(wsMessageSizeLimit)
+	conn.SetPongHandler(func(appData string) error {
+		conn.SetReadDeadline(time.Time{})
+		return nil
+	})
+
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	encode := func(v interface{}, isErrorResponse bool) error {
 		return conn.WriteJSON(v)
 	}
 	wc := &websocketCodec{
-		jsonCodec:    NewFuncCodec(conn, encode, conn.ReadJSON).(*jsonCodec),
-		conn:         conn,
-		pingReset:    make(chan struct{}, 1),
-		pongReceived: make(chan struct{}),
+		jsonCodec: NewFuncCodec(conn, encode, conn.ReadJSON).(*jsonCodec),
+		conn:      conn,
+		pingReset: make(chan struct{}, 1),
 		info: PeerInfo{
 			Transport:  "ws",
 			RemoteAddr: conn.RemoteAddr().String(),
@@ -307,13 +315,6 @@ func newWebsocketCodec(conn *websocket.Conn, host string, req http.Header, readL
 	wc.info.HTTP.Origin = req.Get("Origin")
 	wc.info.HTTP.UserAgent = req.Get("User-Agent")
 	// Start pinger.
-	conn.SetPongHandler(func(appData string) error {
-		select {
-		case wc.pongReceived <- struct{}{}:
-		case <-wc.closed():
-		}
-		return nil
-	})
 	wc.wg.Add(1)
 	go wc.pingLoop()
 	return wc
@@ -342,31 +343,26 @@ func (wc *websocketCodec) writeJSON(ctx context.Context, v interface{}, isError 
 
 // pingLoop sends periodic ping frames when the connection is idle.
 func (wc *websocketCodec) pingLoop() {
-	var pingTimer = time.NewTimer(wsPingInterval)
+	var timer = time.NewTimer(wsPingInterval)
 	defer wc.wg.Done()
-	defer pingTimer.Stop()
+	defer timer.Stop()
 
 	for {
 		select {
 		case <-wc.closed():
 			return
-
 		case <-wc.pingReset:
-			if !pingTimer.Stop() {
-				<-pingTimer.C
+			if !timer.Stop() {
+				<-timer.C
 			}
-			pingTimer.Reset(wsPingInterval)
-
-		case <-pingTimer.C:
+			timer.Reset(wsPingInterval)
+		case <-timer.C:
 			wc.jsonCodec.encMu.Lock()
 			wc.conn.SetWriteDeadline(time.Now().Add(wsPingWriteTimeout))
 			wc.conn.WriteMessage(websocket.PingMessage, nil)
 			wc.conn.SetReadDeadline(time.Now().Add(wsPongTimeout))
 			wc.jsonCodec.encMu.Unlock()
-			pingTimer.Reset(wsPingInterval)
-
-		case <-wc.pongReceived:
-			wc.conn.SetReadDeadline(time.Time{})
+			timer.Reset(wsPingInterval)
 		}
 	}
 }

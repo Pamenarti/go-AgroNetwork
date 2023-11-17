@@ -27,7 +27,10 @@ import (
 	"github.com/ethereum/go-ethereum/consensus/clique"
 	"github.com/ethereum/go-ethereum/consensus/ethash"
 	"github.com/ethereum/go-ethereum/core"
+<<<<<<< HEAD
 	"github.com/ethereum/go-ethereum/core/txpool/blobpool"
+=======
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	"github.com/ethereum/go-ethereum/core/txpool/legacypool"
 	"github.com/ethereum/go-ethereum/eth/downloader"
 	"github.com/ethereum/go-ethereum/eth/gasprice"
@@ -61,9 +64,13 @@ var Defaults = Config{
 	SyncMode:           downloader.SnapSync,
 	NetworkId:          0, // enable auto configuration of networkID == chainID
 	TxLookupLimit:      2350000,
+<<<<<<< HEAD
 	TransactionHistory: 2350000,
 	StateHistory:       params.FullImmutabilityThreshold,
+=======
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	LightPeers:         100,
+	UltraLightFraction: 75,
 	DatabaseCache:      512,
 	TrieCleanCache:     154,
 	TrieDirtyCache:     256,
@@ -72,7 +79,6 @@ var Defaults = Config{
 	FilterLogCacheSize: 32,
 	Miner:              miner.DefaultConfig,
 	TxPool:             legacypool.DefaultConfig,
-	BlobPool:           blobpool.DefaultConfig,
 	RPCGasCap:          50000000,
 	RPCEVMTimeout:      5 * time.Second,
 	GPO:                FullNodeGPO,
@@ -100,6 +106,7 @@ type Config struct {
 	NoPruning  bool // Whether to disable pruning and flush everything to disk
 	NoPrefetch bool // Whether to disable prefetching and only load state on demand
 
+<<<<<<< HEAD
 	// Deprecated, use 'TransactionHistory' instead.
 	TxLookupLimit      uint64 `toml:",omitempty"` // The maximum number of blocks from head whose tx indices are reserved.
 	TransactionHistory uint64 `toml:",omitempty"` // The maximum number of blocks from head whose tx indices are reserved.
@@ -109,6 +116,9 @@ type Config struct {
 	// nodes on top. It can be 'hash', 'path', or none which means use the scheme
 	// consistent with persistent state.
 	StateScheme string `toml:",omitempty"`
+=======
+	TxLookupLimit uint64 `toml:",omitempty"` // The maximum number of blocks from head whose tx indices are reserved.
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 
 	// RequiredBlocks is a set of block number -> hash mappings which must be in the
 	// canonical chain of all remote peers. Setting the option makes geth verify the
@@ -122,6 +132,11 @@ type Config struct {
 	LightPeers       int  `toml:",omitempty"` // Maximum number of LES client peers
 	LightNoPrune     bool `toml:",omitempty"` // Whether to disable light chain pruning
 	LightNoSyncServe bool `toml:",omitempty"` // Whether to serve light clients before syncing
+
+	// Ultra Light client options
+	UltraLightServers      []string `toml:",omitempty"` // List of trusted ultra light servers
+	UltraLightFraction     int      `toml:",omitempty"` // Percentage of trusted servers to accept an announcement
+	UltraLightOnlyAnnounce bool     `toml:",omitempty"` // Whether to only announce headers, or also serve them
 
 	// Database options
 	SkipBcVersionCheck bool `toml:"-"`
@@ -142,8 +157,7 @@ type Config struct {
 	Miner miner.Config
 
 	// Transaction pool options
-	TxPool   legacypool.Config
-	BlobPool blobpool.Config
+	TxPool legacypool.Config
 
 	// Gas Price Oracle options
 	GPO gasprice.Config

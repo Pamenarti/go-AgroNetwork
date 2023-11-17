@@ -31,7 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/crypto"
-	"github.com/ethereum/go-ethereum/eth/downloader"
+	"github.com/ethereum/go-ethereum/les/downloader"
 	"github.com/ethereum/go-ethereum/light"
 	"github.com/ethereum/go-ethereum/p2p"
 	"github.com/ethereum/go-ethereum/params"
@@ -407,7 +407,7 @@ func testGetProofs(t *testing.T, protocol int) {
 	accounts := []common.Address{bankAddr, userAddr1, userAddr2, signerAddr, {}}
 	for i := uint64(0); i <= bc.CurrentBlock().Number.Uint64(); i++ {
 		header := bc.GetHeaderByNumber(i)
-		trie, _ := trie.New(trie.StateTrieID(header.Root), server.backend.Blockchain().TrieDB())
+		trie, _ := trie.New(trie.StateTrieID(header.Root), trie.NewDatabase(server.db))
 
 		for _, acc := range accounts {
 			req := ProofReq{
@@ -457,8 +457,13 @@ func testGetStaleProof(t *testing.T, protocol int) {
 
 		var expected []rlp.RawValue
 		if wantOK {
+<<<<<<< HEAD
 			proofsV2 := trienode.NewProofSet()
 			t, _ := trie.New(trie.StateTrieID(header.Root), server.backend.Blockchain().TrieDB())
+=======
+			proofsV2 := light.NewNodeSet()
+			t, _ := trie.New(trie.StateTrieID(header.Root), trie.NewDatabase(server.db))
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 			t.Prove(account, proofsV2)
 			expected = proofsV2.List()
 		}
@@ -514,7 +519,7 @@ func testGetCHTProofs(t *testing.T, protocol int) {
 		AuxData: [][]byte{rlp},
 	}
 	root := light.GetChtRoot(server.db, 0, bc.GetHeaderByNumber(config.ChtSize-1).Hash())
-	trie, _ := trie.New(trie.TrieID(root), trie.NewDatabase(rawdb.NewTable(server.db, string(rawdb.ChtTablePrefix)), trie.HashDefaults))
+	trie, _ := trie.New(trie.TrieID(root), trie.NewDatabase(rawdb.NewTable(server.db, string(rawdb.ChtTablePrefix))))
 	trie.Prove(key, &proofsV2.Proofs)
 	// Assemble the requests for the different protocols
 	requestsV2 := []HelperTrieReq{{
@@ -579,7 +584,7 @@ func testGetBloombitsProofs(t *testing.T, protocol int) {
 		var proofs HelperTrieResps
 
 		root := light.GetBloomTrieRoot(server.db, 0, bc.GetHeaderByNumber(config.BloomTrieSize-1).Hash())
-		trie, _ := trie.New(trie.TrieID(root), trie.NewDatabase(rawdb.NewTable(server.db, string(rawdb.BloomTrieTablePrefix)), trie.HashDefaults))
+		trie, _ := trie.New(trie.TrieID(root), trie.NewDatabase(rawdb.NewTable(server.db, string(rawdb.BloomTrieTablePrefix))))
 		trie.Prove(key, &proofs.Proofs)
 
 		// Send the proof request and verify the response

@@ -143,7 +143,7 @@ func fuzz(input []byte) int {
 
 func runRandTest(rt randTest) error {
 	var (
-		triedb = trie.NewDatabase(rawdb.NewMemoryDatabase(), nil)
+		triedb = trie.NewDatabase(rawdb.NewMemoryDatabase())
 		tr     = trie.NewEmpty(triedb)
 		origin = types.EmptyRootHash
 		values = make(map[string]string) // tracks content of the trie
@@ -170,7 +170,7 @@ func runRandTest(rt randTest) error {
 				return err
 			}
 			if nodes != nil {
-				if err := triedb.Update(hash, origin, 0, trienode.NewWithNodeSet(nodes), nil); err != nil {
+				if err := triedb.Update(hash, origin, trienode.NewWithNodeSet(nodes), nil); err != nil {
 					return err
 				}
 			}

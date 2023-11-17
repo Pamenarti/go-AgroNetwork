@@ -39,10 +39,16 @@ func (obj *Header) EncodeRLP(_w io.Writer) error {
 	w.WriteBytes(obj.Nonce[:])
 	_tmp1 := obj.BaseFee != nil
 	_tmp2 := obj.WithdrawalsHash != nil
+<<<<<<< HEAD
 	_tmp3 := obj.BlobGasUsed != nil
 	_tmp4 := obj.ExcessBlobGas != nil
 	_tmp5 := obj.ParentBeaconRoot != nil
 	if _tmp1 || _tmp2 || _tmp3 || _tmp4 || _tmp5 {
+=======
+	_tmp3 := obj.ExcessDataGas != nil
+	_tmp4 := obj.DataGasUsed != nil
+	if _tmp1 || _tmp2 || _tmp3 || _tmp4 {
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 		if obj.BaseFee == nil {
 			w.Write(rlp.EmptyString)
 		} else {
@@ -52,24 +58,25 @@ func (obj *Header) EncodeRLP(_w io.Writer) error {
 			w.WriteBigInt(obj.BaseFee)
 		}
 	}
-	if _tmp2 || _tmp3 || _tmp4 || _tmp5 {
+	if _tmp2 || _tmp3 || _tmp4 {
 		if obj.WithdrawalsHash == nil {
 			w.Write([]byte{0x80})
 		} else {
 			w.WriteBytes(obj.WithdrawalsHash[:])
 		}
 	}
-	if _tmp3 || _tmp4 || _tmp5 {
-		if obj.BlobGasUsed == nil {
+	if _tmp3 || _tmp4 {
+		if obj.ExcessDataGas == nil {
 			w.Write([]byte{0x80})
 		} else {
-			w.WriteUint64((*obj.BlobGasUsed))
+			w.WriteUint64((*obj.ExcessDataGas))
 		}
 	}
-	if _tmp4 || _tmp5 {
-		if obj.ExcessBlobGas == nil {
+	if _tmp4 {
+		if obj.DataGasUsed == nil {
 			w.Write([]byte{0x80})
 		} else {
+<<<<<<< HEAD
 			w.WriteUint64((*obj.ExcessBlobGas))
 		}
 	}
@@ -78,6 +85,9 @@ func (obj *Header) EncodeRLP(_w io.Writer) error {
 			w.Write([]byte{0x80})
 		} else {
 			w.WriteBytes(obj.ParentBeaconRoot[:])
+=======
+			w.WriteUint64((*obj.DataGasUsed))
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 		}
 	}
 	w.ListEnd(_tmp0)

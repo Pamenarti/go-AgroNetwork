@@ -31,7 +31,7 @@ var (
 	VersionCheckUrlFlag = &cli.StringFlag{
 		Name:  "check.url",
 		Usage: "URL to use when checking vulnerabilities",
-		Value: "https://agrod.ethereum.org/docs/vulnerabilities/vulnerabilities.json",
+		Value: "https://geth.ethereum.org/docs/vulnerabilities/vulnerabilities.json",
 	}
 	VersionCheckVersionFlag = &cli.StringFlag{
 		Name:  "check.version",
@@ -57,7 +57,7 @@ The output of this command is supposed to be machine-readable.
 		Usage:     "Checks (online) for known Geth security vulnerabilities",
 		ArgsUsage: "<versionstring (optional)>",
 		Description: `
-The version-check command fetches vulnerability-information from https://agrod.ethereum.org/docs/vulnerabilities/vulnerabilities.json, 
+The version-check command fetches vulnerability-information from https://geth.ethereum.org/docs/vulnerabilities/vulnerabilities.json, 
 and displays information about any security vulnerabilities that affect the currently executing version.
 `,
 	}
@@ -100,6 +100,6 @@ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with agrod. If not, see <http://www.gnu.org/licenses/>.`)
+along with geth. If not, see <http://www.gnu.org/licenses/>.`)
 	return nil
 }

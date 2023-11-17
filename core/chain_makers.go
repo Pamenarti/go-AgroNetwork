@@ -23,8 +23,6 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
 	"github.com/ethereum/go-ethereum/consensus/misc"
-	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
-	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -87,6 +85,7 @@ func (b *BlockGen) SetPoS() {
 	b.header.Difficulty = new(big.Int)
 }
 
+<<<<<<< HEAD
 // Difficulty returns the currently calculated difficulty of the block.
 func (b *BlockGen) Difficulty() *big.Int {
 	return new(big.Int).Set(b.header.Difficulty)
@@ -103,6 +102,8 @@ func (b *BlockGen) SetParentBeaconRoot(root common.Hash) {
 	ProcessBeaconBlockRoot(root, vmenv, b.statedb)
 }
 
+=======
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 // addTx adds a transaction to the generated block. If no coinbase has
 // been set, the block's coinbase is set to the zero address.
 //
@@ -228,10 +229,17 @@ func (b *BlockGen) AddUncle(h *types.Header) {
 
 	// The gas limit and price should be derived from the parent
 	h.GasLimit = parent.GasLimit
+<<<<<<< HEAD
 	if b.cm.config.IsLondon(h.Number) {
 		h.BaseFee = eip1559.CalcBaseFee(b.cm.config, parent)
 		if !b.cm.config.IsLondon(parent.Number) {
 			parentGasLimit := parent.GasLimit * b.cm.config.ElasticityMultiplier()
+=======
+	if b.config.IsLondon(h.Number) {
+		h.BaseFee = misc.CalcBaseFee(b.config, parent)
+		if !b.config.IsLondon(parent.Number) {
+			parentGasLimit := parent.GasLimit * b.config.ElasticityMultiplier()
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 			h.GasLimit = CalcGasLimit(parentGasLimit, parentGasLimit)
 		}
 	}
@@ -306,6 +314,7 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 	if config == nil {
 		config = params.TestChainConfig
 	}
+<<<<<<< HEAD
 	if engine == nil {
 		panic("nil consensus engine")
 	}
@@ -314,6 +323,13 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 	genblock := func(i int, parent *types.Block, triedb *trie.Database, statedb *state.StateDB) (*types.Block, types.Receipts) {
 		b := &BlockGen{i: i, cm: cm, parent: parent, statedb: statedb, engine: engine}
 		b.header = cm.makeHeader(parent, statedb, b.engine)
+=======
+	blocks, receipts := make(types.Blocks, n), make([]types.Receipts, n)
+	chainreader := &fakeChainReader{config: config}
+	genblock := func(i int, parent *types.Block, statedb *state.StateDB) (*types.Block, types.Receipts) {
+		b := &BlockGen{i: i, chain: blocks, parent: parent, statedb: statedb, config: config, engine: engine}
+		b.header = makeHeader(chainreader, parent, statedb, b.engine)
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 
 		// Set the difficulty for clique block. The chain maker doesn't have access
 		// to a chain, so the difficulty will be left unset (nil). Set it here to the
@@ -344,9 +360,21 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 			gen(i, b)
 		}
 
+<<<<<<< HEAD
 		block, err := b.engine.FinalizeAndAssemble(cm, b.header, statedb, b.txs, b.uncles, b.receipts, b.withdrawals)
 		if err != nil {
 			panic(err)
+=======
+			// Write state changes to db
+			root, err := statedb.Commit(config.IsEIP158(b.header.Number))
+			if err != nil {
+				panic(fmt.Sprintf("state write error: %v", err))
+			}
+			if err := statedb.Database().TrieDB().Commit(root, false); err != nil {
+				panic(fmt.Sprintf("trie write error: %v", err))
+			}
+			return block, b.receipts
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 		}
 
 		// Write state changes to db
@@ -359,16 +387,20 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 		}
 		return block, b.receipts
 	}
+<<<<<<< HEAD
 
 	// Forcibly use hash-based state scheme for retaining all nodes in disk.
 	triedb := trie.NewDatabase(db, trie.HashDefaults)
 	defer triedb.Close()
 
+=======
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	for i := 0; i < n; i++ {
-		statedb, err := state.New(parent.Root(), state.NewDatabaseWithNodeDB(db, triedb), nil)
+		statedb, err := state.New(parent.Root(), state.NewDatabase(db), nil)
 		if err != nil {
 			panic(err)
 		}
+<<<<<<< HEAD
 		block, receipts := genblock(i, parent, triedb, statedb)
 
 		// Post-process the receipts.
@@ -396,6 +428,11 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 
 		// Advance the chain.
 		cm.add(block, receipts)
+=======
+		block, receipt := genblock(i, parent, statedb)
+		blocks[i] = block
+		receipts[i] = receipt
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 		parent = block
 	}
 	return cm.chain, cm.receipts
@@ -406,9 +443,7 @@ func GenerateChain(config *params.ChainConfig, parent *types.Block, engine conse
 // then generate chain on top.
 func GenerateChainWithGenesis(genesis *Genesis, engine consensus.Engine, n int, gen func(int, *BlockGen)) (ethdb.Database, []*types.Block, []types.Receipts) {
 	db := rawdb.NewMemoryDatabase()
-	triedb := trie.NewDatabase(db, trie.HashDefaults)
-	defer triedb.Close()
-	_, err := genesis.Commit(db, triedb)
+	_, err := genesis.Commit(db, trie.NewDatabase(db))
 	if err != nil {
 		panic(err)
 	}
@@ -427,6 +462,7 @@ func (cm *chainMaker) makeHeader(parent *types.Block, state *state.StateDB, engi
 		Number:     new(big.Int).Add(parent.Number(), common.Big1),
 		Time:       time,
 	}
+<<<<<<< HEAD
 
 	if cm.config.IsLondon(header.Number) {
 		header.BaseFee = eip1559.CalcBaseFee(cm.config, parent.Header())
@@ -449,6 +485,15 @@ func (cm *chainMaker) makeHeader(parent *types.Block, state *state.StateDB, engi
 		header.BlobGasUsed = new(uint64)
 		header.ParentBeaconRoot = new(common.Hash)
 	}
+=======
+	if chain.Config().IsLondon(header.Number) {
+		header.BaseFee = misc.CalcBaseFee(chain.Config(), parent.Header())
+		if !chain.Config().IsLondon(parent.Number()) {
+			parentGasLimit := parent.GasLimit() * chain.Config().ElasticityMultiplier()
+			header.GasLimit = CalcGasLimit(parentGasLimit, parentGasLimit)
+		}
+	}
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	return header
 }
 

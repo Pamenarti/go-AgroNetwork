@@ -32,8 +32,6 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-const devEpochLength = 32
-
 // withdrawalQueue implements a FIFO queue which holds withdrawals that are
 // pending inclusion.
 type withdrawalQueue struct {
@@ -165,12 +163,13 @@ func (c *SimulatedBeacon) sealBlock(withdrawals []*types.Withdrawal) error {
 		return errors.New("chain rewind prevented invocation of payload creation")
 	}
 
-	envelope, err := c.engineAPI.getPayload(*fcResponse.PayloadID, true)
+	envelope, err := c.engineAPI.getFullPayload(*fcResponse.PayloadID)
 	if err != nil {
 		return err
 	}
 	payload := envelope.ExecutionPayload
 
+<<<<<<< HEAD
 	var finalizedHash common.Hash
 	if payload.Number%devEpochLength == 0 {
 		finalizedHash = payload.BlockHash
@@ -183,11 +182,23 @@ func (c *SimulatedBeacon) sealBlock(withdrawals []*types.Withdrawal) error {
 	}
 
 	// Mark the payload as canon
+=======
+	// mark the payload as canon
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	if _, err = c.engineAPI.NewPayloadV2(*payload); err != nil {
 		return err
 	}
+<<<<<<< HEAD
 	c.setCurrentState(payload.BlockHash, finalizedHash)
 	// Mark the block containing the payload as canonical
+=======
+	c.curForkchoiceState = engine.ForkchoiceStateV1{
+		HeadBlockHash:      payload.BlockHash,
+		SafeBlockHash:      payload.BlockHash,
+		FinalizedBlockHash: payload.BlockHash,
+	}
+	// mark the block containing the payload as canonical
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	if _, err = c.engineAPI.ForkchoiceUpdatedV2(c.curForkchoiceState, nil); err != nil {
 		return err
 	}

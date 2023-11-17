@@ -384,6 +384,7 @@ func (t *StackTrie) hash(st *stNode, path []byte) {
 		// recursively hash and commit child as the first step
 		t.hash(st.children[0], append(path, st.key...))
 
+<<<<<<< HEAD
 		// Collect the path of internal nodes between shortNode and its **in disk**
 		// child. This is essential in the case of path mode scheme to avoid leaving
 		// danging nodes within the range of this internal path on disk, which would
@@ -395,6 +396,9 @@ func (t *StackTrie) hash(st *stNode, path []byte) {
 		}
 		// encode the extension node
 		n := shortNode{Key: hexToCompactInPlace(st.key)}
+=======
+		n := shortNode{Key: hexToCompact(st.key)}
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 		if len(st.children[0].val) < 32 {
 			n.Val = rawNode(st.children[0].val)
 		} else {
@@ -408,7 +412,7 @@ func (t *StackTrie) hash(st *stNode, path []byte) {
 
 	case leafNode:
 		st.key = append(st.key, byte(16))
-		n := shortNode{Key: hexToCompactInPlace(st.key), Val: valueNode(st.val)}
+		n := shortNode{Key: hexToCompact(st.key), Val: valueNode(st.val)}
 
 		n.encode(t.h.encbuf)
 		blob = t.h.encodedBytes()

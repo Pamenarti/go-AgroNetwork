@@ -353,8 +353,7 @@ func (dl *diskLayer) generateRange(ctx *generatorContext, trieId *trie.ID, prefi
 	var resolver trie.NodeResolver
 	if len(result.keys) > 0 {
 		mdb := rawdb.NewMemoryDatabase()
-		tdb := trie.NewDatabase(mdb, trie.HashDefaults)
-		defer tdb.Close()
+		tdb := trie.NewDatabase(mdb)
 		snapTrie := trie.NewEmpty(tdb)
 		for i, key := range result.keys {
 			snapTrie.Update(key, result.vals[i])
@@ -364,7 +363,7 @@ func (dl *diskLayer) generateRange(ctx *generatorContext, trieId *trie.ID, prefi
 			return false, nil, err
 		}
 		if nodes != nil {
-			tdb.Update(root, types.EmptyRootHash, 0, trienode.NewWithNodeSet(nodes), nil)
+			tdb.Update(root, types.EmptyRootHash, trienode.NewWithNodeSet(nodes), nil)
 			tdb.Commit(root, false)
 		}
 		resolver = func(owner common.Hash, path []byte, hash common.Hash) []byte {

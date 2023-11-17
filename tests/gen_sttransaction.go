@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"math/big"
 
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/common/math"
 	"github.com/ethereum/go-ethereum/core/types"
@@ -27,9 +26,12 @@ func (s stTransaction) MarshalJSON() ([]byte, error) {
 		GasLimit             []math.HexOrDecimal64 `json:"gasLimit"`
 		Value                []string              `json:"value"`
 		PrivateKey           hexutil.Bytes         `json:"secretKey"`
+<<<<<<< HEAD
 		Sender               *common.Address       `json:"sender"`
 		BlobVersionedHashes  []common.Hash         `json:"blobVersionedHashes,omitempty"`
 		BlobGasFeeCap        *math.HexOrDecimal256 `json:"maxFeePerBlobGas,omitempty"`
+=======
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	}
 	var enc stTransaction
 	enc.GasPrice = (*math.HexOrDecimal256)(s.GasPrice)
@@ -47,9 +49,12 @@ func (s stTransaction) MarshalJSON() ([]byte, error) {
 	}
 	enc.Value = s.Value
 	enc.PrivateKey = s.PrivateKey
+<<<<<<< HEAD
 	enc.Sender = s.Sender
 	enc.BlobVersionedHashes = s.BlobVersionedHashes
 	enc.BlobGasFeeCap = (*math.HexOrDecimal256)(s.BlobGasFeeCap)
+=======
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	return json.Marshal(&enc)
 }
 
@@ -66,9 +71,12 @@ func (s *stTransaction) UnmarshalJSON(input []byte) error {
 		GasLimit             []math.HexOrDecimal64 `json:"gasLimit"`
 		Value                []string              `json:"value"`
 		PrivateKey           *hexutil.Bytes        `json:"secretKey"`
+<<<<<<< HEAD
 		Sender               *common.Address       `json:"sender"`
 		BlobVersionedHashes  []common.Hash         `json:"blobVersionedHashes,omitempty"`
 		BlobGasFeeCap        *math.HexOrDecimal256 `json:"maxFeePerBlobGas,omitempty"`
+=======
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	}
 	var dec stTransaction
 	if err := json.Unmarshal(input, &dec); err != nil {
@@ -107,6 +115,7 @@ func (s *stTransaction) UnmarshalJSON(input []byte) error {
 	if dec.PrivateKey != nil {
 		s.PrivateKey = *dec.PrivateKey
 	}
+<<<<<<< HEAD
 	if dec.Sender != nil {
 		s.Sender = dec.Sender
 	}
@@ -116,5 +125,7 @@ func (s *stTransaction) UnmarshalJSON(input []byte) error {
 	if dec.BlobGasFeeCap != nil {
 		s.BlobGasFeeCap = (*big.Int)(dec.BlobGasFeeCap)
 	}
+=======
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	return nil
 }

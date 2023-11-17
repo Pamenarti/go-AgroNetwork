@@ -25,13 +25,19 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 )
 
-// TestExport does a basic test of "agrod export", exporting the test-genesis.
+// TestExport does a basic test of "geth export", exporting the test-genesis.
 func TestExport(t *testing.T) {
 	outfile := fmt.Sprintf("%v/testExport.out", os.TempDir())
 	defer os.Remove(outfile)
+<<<<<<< HEAD
 	agrod := runGeth(t, "--datadir", initGeth(t), "export", outfile)
 	agrod.WaitExit()
 	if have, want := agrod.ExitStatus(), 0; have != want {
+=======
+	geth := runGeth(t, "--datadir", initGeth(t), "export", outfile)
+	geth.WaitExit()
+	if have, want := geth.ExitStatus(), 0; have != want {
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 		t.Errorf("exit error, have %d want %d", have, want)
 	}
 	have, err := os.ReadFile(outfile)

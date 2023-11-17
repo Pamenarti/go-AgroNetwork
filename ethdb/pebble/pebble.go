@@ -85,8 +85,6 @@ type Database struct {
 	writeDelayStartTime time.Time     // The start time of the latest write stall
 	writeDelayCount     atomic.Int64  // Total number of write stall counts
 	writeDelayTime      atomic.Int64  // Total time spent in write stalls
-
-	writeOptions *pebble.WriteOptions
 }
 
 func (d *Database) onCompactionBegin(info pebble.CompactionInfo) {
@@ -136,7 +134,7 @@ func (l panicLogger) Fatalf(format string, args ...interface{}) {
 
 // New returns a wrapped pebble DB object. The namespace is the prefix that the
 // metrics reporting should use for surfacing internal stats.
-func New(file string, cache int, handles int, namespace string, readonly bool, ephemeral bool) (*Database, error) {
+func New(file string, cache int, handles int, namespace string, readonly bool) (*Database, error) {
 	// Ensure we have some minimal caching and file guarantees
 	if cache < minCache {
 		cache = minCache
@@ -174,10 +172,9 @@ func New(file string, cache int, handles int, namespace string, readonly bool, e
 		memTableSize = maxMemTableSize - 1
 	}
 	db := &Database{
-		fn:           file,
-		log:          logger,
-		quitChan:     make(chan chan error),
-		writeOptions: &pebble.WriteOptions{Sync: !ephemeral},
+		fn:       file,
+		log:      logger,
+		quitChan: make(chan chan error),
 	}
 	opt := &pebble.Options{
 		// Pebble has a single combined cache area and the write
@@ -313,7 +310,7 @@ func (d *Database) Put(key []byte, value []byte) error {
 	if d.closed {
 		return pebble.ErrClosed
 	}
-	return d.db.Set(key, value, d.writeOptions)
+	return d.db.Set(key, value, pebble.Sync)
 }
 
 // Delete removes the key from the key-value store.
@@ -577,7 +574,7 @@ func (b *batch) Write() error {
 	if b.db.closed {
 		return pebble.ErrClosed
 	}
-	return b.b.Commit(b.db.writeOptions)
+	return b.b.Commit(pebble.Sync)
 }
 
 // Reset resets the batch for reuse.

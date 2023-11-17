@@ -20,19 +20,13 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/log"
-	"github.com/ethereum/go-ethereum/trie/triestate"
 )
 
 // Reader wraps the Node method of a backing trie store.
 type Reader interface {
-	// Node retrieves the trie node blob with the provided trie identifier, node path and
-	// the corresponding node hash. No error will be returned if the node is not found.
-	//
-	// When looking up nodes in the account trie, 'owner' is the zero hash. For contract
-	// storage trie nodes, 'owner' is the hash of the account address that containing the
-	// storage.
-	//
-	// TODO(rjl493456442): remove the 'hash' parameter, it's redundant in PBSS.
+	// Node retrieves the RLP-encoded trie node blob with the provided trie
+	// identifier, node path and the corresponding node hash. No error will
+	// be returned if the node is not found.
 	Node(owner common.Hash, path []byte, hash common.Hash) ([]byte, error)
 }
 
@@ -83,19 +77,4 @@ func (r *trieReader) node(path []byte, hash common.Hash) ([]byte, error) {
 		return nil, &MissingNodeError{Owner: r.owner, NodeHash: hash, Path: path, err: err}
 	}
 	return blob, nil
-}
-
-// trieLoader implements triestate.TrieLoader for constructing tries.
-type trieLoader struct {
-	db *Database
-}
-
-// OpenTrie opens the main account trie.
-func (l *trieLoader) OpenTrie(root common.Hash) (triestate.Trie, error) {
-	return New(TrieID(root), l.db)
-}
-
-// OpenStorageTrie opens the storage trie of an account.
-func (l *trieLoader) OpenStorageTrie(stateRoot common.Hash, addrHash, root common.Hash) (triestate.Trie, error) {
-	return New(StorageTrieID(stateRoot, addrHash, root), l.db)
 }

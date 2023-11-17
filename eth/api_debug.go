@@ -63,14 +63,13 @@ func (api *DebugAPI) DumpBlock(blockNr rpc.BlockNumber) (state.Dump, error) {
 		return stateDb.RawDump(opts), nil
 	}
 	var header *types.Header
-	switch blockNr {
-	case rpc.LatestBlockNumber:
+	if blockNr == rpc.LatestBlockNumber {
 		header = api.eth.blockchain.CurrentBlock()
-	case rpc.FinalizedBlockNumber:
+	} else if blockNr == rpc.FinalizedBlockNumber {
 		header = api.eth.blockchain.CurrentFinalBlock()
-	case rpc.SafeBlockNumber:
+	} else if blockNr == rpc.SafeBlockNumber {
 		header = api.eth.blockchain.CurrentSafeBlock()
-	default:
+	} else {
 		block := api.eth.blockchain.GetBlockByNumber(uint64(blockNr))
 		if block == nil {
 			return state.Dump{}, fmt.Errorf("block #%d not found", blockNr)
@@ -148,14 +147,13 @@ func (api *DebugAPI) AccountRange(blockNrOrHash rpc.BlockNumberOrHash, start hex
 			}
 		} else {
 			var header *types.Header
-			switch number {
-			case rpc.LatestBlockNumber:
+			if number == rpc.LatestBlockNumber {
 				header = api.eth.blockchain.CurrentBlock()
-			case rpc.FinalizedBlockNumber:
+			} else if number == rpc.FinalizedBlockNumber {
 				header = api.eth.blockchain.CurrentFinalBlock()
-			case rpc.SafeBlockNumber:
+			} else if number == rpc.SafeBlockNumber {
 				header = api.eth.blockchain.CurrentSafeBlock()
-			default:
+			} else {
 				block := api.eth.blockchain.GetBlockByNumber(uint64(number))
 				if block == nil {
 					return state.IteratorDump{}, fmt.Errorf("block #%d not found", number)
@@ -324,7 +322,7 @@ func (api *DebugAPI) getModifiedAccounts(startBlock, endBlock *types.Block) ([]c
 	if startBlock.Number().Uint64() >= endBlock.Number().Uint64() {
 		return nil, fmt.Errorf("start block height (%d) must be less than end block height (%d)", startBlock.Number().Uint64(), endBlock.Number().Uint64())
 	}
-	triedb := api.eth.BlockChain().TrieDB()
+	triedb := api.eth.BlockChain().StateCache().TrieDB()
 
 	oldTrie, err := trie.NewStateTrie(trie.StateTrieID(startBlock.Root()), triedb)
 	if err != nil {

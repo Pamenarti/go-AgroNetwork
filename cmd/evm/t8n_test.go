@@ -259,6 +259,7 @@ func TestT8n(t *testing.T) {
 			output: t8nOutput{alloc: true, result: true},
 			expOut: "exp.json",
 		},
+<<<<<<< HEAD
 		{ // Cancun tests
 			base: "./testdata/28",
 			input: t8nInput{
@@ -283,6 +284,8 @@ func TestT8n(t *testing.T) {
 			output: t8nOutput{alloc: true, result: true},
 			expOut: "exp.json",
 		},
+=======
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	} {
 		args := []string{"t8n"}
 		args = append(args, tc.output.get()...)

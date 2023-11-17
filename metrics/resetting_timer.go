@@ -56,6 +56,7 @@ func NewResettingTimer() ResettingTimer {
 // NilResettingTimer is a no-op ResettingTimer.
 type NilResettingTimer struct{}
 
+<<<<<<< HEAD
 func (NilResettingTimer) Values() []int64                    { return nil }
 func (n NilResettingTimer) Snapshot() ResettingTimerSnapshot { return n }
 func (NilResettingTimer) Time(f func())                      { f() }
@@ -66,6 +67,36 @@ func (NilResettingTimer) Max() int64                         { return 0 }
 func (NilResettingTimer) Min() int64                         { return 0 }
 func (NilResettingTimer) UpdateSince(time.Time)              {}
 func (NilResettingTimer) Count() int                         { return 0 }
+=======
+// Values is a no-op.
+func (NilResettingTimer) Values() []int64 { return nil }
+
+// Snapshot is a no-op.
+func (NilResettingTimer) Snapshot() ResettingTimer {
+	return &ResettingTimerSnapshot{
+		values: []int64{},
+	}
+}
+
+// Time is a no-op.
+func (NilResettingTimer) Time(func()) {}
+
+// Update is a no-op.
+func (NilResettingTimer) Update(time.Duration) {}
+
+// Percentiles panics.
+func (NilResettingTimer) Percentiles([]float64) []int64 {
+	panic("Percentiles called on a NilResettingTimer")
+}
+
+// Mean panics.
+func (NilResettingTimer) Mean() float64 {
+	panic("Mean called on a NilResettingTimer")
+}
+
+// UpdateSince is a no-op.
+func (NilResettingTimer) UpdateSince(time.Time) {}
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 
 // StandardResettingTimer is the standard implementation of a ResettingTimer.
 // and Meter.

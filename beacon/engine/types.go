@@ -62,8 +62,6 @@ type ExecutableData struct {
 	BlockHash     common.Hash         `json:"blockHash"     gencodec:"required"`
 	Transactions  [][]byte            `json:"transactions"  gencodec:"required"`
 	Withdrawals   []*types.Withdrawal `json:"withdrawals"`
-	BlobGasUsed   *uint64             `json:"blobGasUsed"`
-	ExcessBlobGas *uint64             `json:"excessBlobGas"`
 }
 
 // JSON type overrides for executableData.
@@ -76,8 +74,6 @@ type executableDataMarshaling struct {
 	ExtraData     hexutil.Bytes
 	LogsBloom     hexutil.Bytes
 	Transactions  []hexutil.Bytes
-	BlobGasUsed   *hexutil.Uint64
-	ExcessBlobGas *hexutil.Uint64
 }
 
 //go:generate go run github.com/fjl/gencodec -type ExecutionPayloadEnvelope -field-override executionPayloadEnvelopeMarshaling -out gen_epe.go
@@ -85,6 +81,7 @@ type executableDataMarshaling struct {
 type ExecutionPayloadEnvelope struct {
 	ExecutionPayload *ExecutableData `json:"executionPayload"  gencodec:"required"`
 	BlockValue       *big.Int        `json:"blockValue"  gencodec:"required"`
+<<<<<<< HEAD
 	BlobsBundle      *BlobsBundleV1  `json:"blobsBundle"`
 	Override         bool            `json:"shouldOverrideBuilder"`
 }
@@ -93,6 +90,8 @@ type BlobsBundleV1 struct {
 	Commitments []hexutil.Bytes `json:"commitments"`
 	Proofs      []hexutil.Bytes `json:"proofs"`
 	Blobs       []hexutil.Bytes `json:"blobs"`
+=======
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 }
 
 // JSON type overrides for ExecutionPayloadEnvelope.
@@ -165,15 +164,18 @@ func decodeTransactions(enc [][]byte) ([]*types.Transaction, error) {
 // ExecutableDataToBlock constructs a block from executable data.
 // It verifies that the following fields:
 //
-//		len(extraData) <= 32
-//		uncleHash = emptyUncleHash
-//		difficulty = 0
-//	 	if versionedHashes != nil, versionedHashes match to blob transactions
+//	len(extraData) <= 32
+//	uncleHash = emptyUncleHash
+//	difficulty = 0
 //
 // and that the blockhash of the constructed block matches the parameters. Nil
 // Withdrawals value will propagate through the returned block. Empty
 // Withdrawals value must be passed via non-nil, length 0 value in params.
+<<<<<<< HEAD
 func ExecutableDataToBlock(params ExecutableData, versionedHashes []common.Hash, beaconRoot *common.Hash) (*types.Block, error) {
+=======
+func ExecutableDataToBlock(params ExecutableData) (*types.Block, error) {
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	txs, err := decodeTransactions(params.Transactions)
 	if err != nil {
 		return nil, err
@@ -188,18 +190,6 @@ func ExecutableDataToBlock(params ExecutableData, versionedHashes []common.Hash,
 	if params.BaseFeePerGas != nil && (params.BaseFeePerGas.Sign() == -1 || params.BaseFeePerGas.BitLen() > 256) {
 		return nil, fmt.Errorf("invalid baseFeePerGas: %v", params.BaseFeePerGas)
 	}
-	var blobHashes []common.Hash
-	for _, tx := range txs {
-		blobHashes = append(blobHashes, tx.BlobHashes()...)
-	}
-	if len(blobHashes) != len(versionedHashes) {
-		return nil, fmt.Errorf("invalid number of versionedHashes: %v blobHashes: %v", versionedHashes, blobHashes)
-	}
-	for i := 0; i < len(blobHashes); i++ {
-		if blobHashes[i] != versionedHashes[i] {
-			return nil, fmt.Errorf("invalid versionedHash at %v: %v blobHashes: %v", i, versionedHashes, blobHashes)
-		}
-	}
 	// Only set withdrawalsRoot if it is non-nil. This allows CLs to use
 	// ExecutableData before withdrawals are enabled by marshaling
 	// Withdrawals as the json null value.
@@ -209,6 +199,7 @@ func ExecutableDataToBlock(params ExecutableData, versionedHashes []common.Hash,
 		withdrawalsRoot = &h
 	}
 	header := &types.Header{
+<<<<<<< HEAD
 		ParentHash:       params.ParentHash,
 		UncleHash:        types.EmptyUncleHash,
 		Coinbase:         params.FeeRecipient,
@@ -228,6 +219,24 @@ func ExecutableDataToBlock(params ExecutableData, versionedHashes []common.Hash,
 		ExcessBlobGas:    params.ExcessBlobGas,
 		BlobGasUsed:      params.BlobGasUsed,
 		ParentBeaconRoot: beaconRoot,
+=======
+		ParentHash:      params.ParentHash,
+		UncleHash:       types.EmptyUncleHash,
+		Coinbase:        params.FeeRecipient,
+		Root:            params.StateRoot,
+		TxHash:          types.DeriveSha(types.Transactions(txs), trie.NewStackTrie(nil)),
+		ReceiptHash:     params.ReceiptsRoot,
+		Bloom:           types.BytesToBloom(params.LogsBloom),
+		Difficulty:      common.Big0,
+		Number:          new(big.Int).SetUint64(params.Number),
+		GasLimit:        params.GasLimit,
+		GasUsed:         params.GasUsed,
+		Time:            params.Timestamp,
+		BaseFee:         params.BaseFeePerGas,
+		Extra:           params.ExtraData,
+		MixDigest:       params.Random,
+		WithdrawalsHash: withdrawalsRoot,
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	}
 	block := types.NewBlockWithHeader(header).WithBody(txs, nil /* uncles */).WithWithdrawals(params.Withdrawals)
 	if block.Hash() != params.BlockHash {
@@ -238,7 +247,7 @@ func ExecutableDataToBlock(params ExecutableData, versionedHashes []common.Hash,
 
 // BlockToExecutableData constructs the ExecutableData structure by filling the
 // fields from the given block. It assumes the given block is post-merge block.
-func BlockToExecutableData(block *types.Block, fees *big.Int, sidecars []*types.BlobTxSidecar) *ExecutionPayloadEnvelope {
+func BlockToExecutableData(block *types.Block, fees *big.Int) *ExecutionPayloadEnvelope {
 	data := &ExecutableData{
 		BlockHash:     block.Hash(),
 		ParentHash:    block.ParentHash(),
@@ -255,6 +264,7 @@ func BlockToExecutableData(block *types.Block, fees *big.Int, sidecars []*types.
 		Random:        block.MixDigest(),
 		ExtraData:     block.Extra(),
 		Withdrawals:   block.Withdrawals(),
+<<<<<<< HEAD
 		BlobGasUsed:   block.BlobGasUsed(),
 		ExcessBlobGas: block.ExcessBlobGas(),
 	}
@@ -271,6 +281,10 @@ func BlockToExecutableData(block *types.Block, fees *big.Int, sidecars []*types.
 		}
 	}
 	return &ExecutionPayloadEnvelope{ExecutionPayload: data, BlockValue: fees, BlobsBundle: &bundle, Override: false}
+=======
+	}
+	return &ExecutionPayloadEnvelope{ExecutionPayload: data, BlockValue: fees}
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 }
 
 // ExecutionPayloadBodyV1 is used in the response to GetPayloadBodiesByHashV1 and GetPayloadBodiesByRangeV1

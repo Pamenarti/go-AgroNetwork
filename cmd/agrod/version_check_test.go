@@ -113,7 +113,7 @@ func TestMatching(t *testing.T) {
 				t.Fatal(err)
 			}
 			if vuln.Name == "Denial of service due to Go CVE-2020-28362" {
-				// this one is not tied to agrod-versions
+				// this one is not tied to geth-versions
 				continue
 			}
 			if vulnIntro <= current && vulnFixed > current {
@@ -141,7 +141,11 @@ func TestMatching(t *testing.T) {
 }
 
 func TestGethPubKeysParseable(t *testing.T) {
+<<<<<<< HEAD
 	for _, pubkey := range agrodPubKeys {
+=======
+	for _, pubkey := range gethPubKeys {
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 		_, err := minisign.NewPublicKey(pubkey)
 		if err != nil {
 			t.Errorf("Should be parseable")
@@ -158,9 +162,9 @@ func TestKeyID(t *testing.T) {
 		args args
 		want string
 	}{
-		{"@holiman key", args{id: extractKeyId(agrodPubKeys[0])}, "FB1D084D39BAEC24"},
-		{"second key", args{id: extractKeyId(agrodPubKeys[1])}, "138B1CA303E51687"},
-		{"third key", args{id: extractKeyId(agrodPubKeys[2])}, "FD9813B2D2098484"},
+		{"@holiman key", args{id: extractKeyId(gethPubKeys[0])}, "FB1D084D39BAEC24"},
+		{"second key", args{id: extractKeyId(gethPubKeys[1])}, "138B1CA303E51687"},
+		{"third key", args{id: extractKeyId(gethPubKeys[2])}, "FD9813B2D2098484"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

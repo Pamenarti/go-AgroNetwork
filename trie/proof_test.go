@@ -94,7 +94,7 @@ func TestProof(t *testing.T) {
 }
 
 func TestOneElementProof(t *testing.T) {
-	trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase(), nil))
+	trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase()))
 	updateString(trie, "k", "v")
 	for i, prover := range makeProvers(trie) {
 		proof := prover([]byte("k"))
@@ -145,7 +145,7 @@ func TestBadProof(t *testing.T) {
 // Tests that missing keys can also be proven. The test explicitly uses a single
 // entry trie and checks for missing keys both before and after the single entry.
 func TestMissingKeyProof(t *testing.T) {
-	trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase(), nil))
+	trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase()))
 	updateString(trie, "k", "v")
 
 	for i, key := range []string{"a", "j", "l", "z"} {
@@ -173,7 +173,7 @@ func TestRangeProof(t *testing.T) {
 	for _, kv := range vals {
 		entries = append(entries, kv)
 	}
-	slices.SortFunc(entries, (*kv).cmp)
+	slices.SortFunc(entries, (*kv).less)
 	for i := 0; i < 500; i++ {
 		start := mrand.Intn(len(entries))
 		end := mrand.Intn(len(entries)-start) + start + 1
@@ -206,7 +206,7 @@ func TestRangeProofWithNonExistentProof(t *testing.T) {
 	for _, kv := range vals {
 		entries = append(entries, kv)
 	}
-	slices.SortFunc(entries, (*kv).cmp)
+	slices.SortFunc(entries, (*kv).less)
 	for i := 0; i < 500; i++ {
 		start := mrand.Intn(len(entries))
 		end := mrand.Intn(len(entries)-start) + start + 1
@@ -248,7 +248,7 @@ func TestRangeProofWithInvalidNonExistentProof(t *testing.T) {
 	for _, kv := range vals {
 		entries = append(entries, kv)
 	}
-	slices.SortFunc(entries, (*kv).cmp)
+	slices.SortFunc(entries, (*kv).less)
 
 	// Case 1
 	start, end := 100, 200
@@ -283,7 +283,7 @@ func TestOneElementRangeProof(t *testing.T) {
 	for _, kv := range vals {
 		entries = append(entries, kv)
 	}
-	slices.SortFunc(entries, (*kv).cmp)
+	slices.SortFunc(entries, (*kv).less)
 
 	// One element with existent edge proof, both edge proofs
 	// point to the SAME key.
@@ -343,7 +343,7 @@ func TestOneElementRangeProof(t *testing.T) {
 	}
 
 	// Test the mini trie with only a single element.
-	tinyTrie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase(), nil))
+	tinyTrie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase()))
 	entry := &kv{randBytes(32), randBytes(20), false}
 	tinyTrie.MustUpdate(entry.k, entry.v)
 
@@ -370,7 +370,7 @@ func TestAllElementsProof(t *testing.T) {
 	for _, kv := range vals {
 		entries = append(entries, kv)
 	}
-	slices.SortFunc(entries, (*kv).cmp)
+	slices.SortFunc(entries, (*kv).less)
 
 	var k [][]byte
 	var v [][]byte
@@ -414,14 +414,14 @@ func TestAllElementsProof(t *testing.T) {
 // TestSingleSideRangeProof tests the range starts from zero.
 func TestSingleSideRangeProof(t *testing.T) {
 	for i := 0; i < 64; i++ {
-		trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase(), nil))
+		trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase()))
 		var entries []*kv
 		for i := 0; i < 4096; i++ {
 			value := &kv{randBytes(32), randBytes(20), false}
 			trie.MustUpdate(value.k, value.v)
 			entries = append(entries, value)
 		}
-		slices.SortFunc(entries, (*kv).cmp)
+		slices.SortFunc(entries, (*kv).less)
 
 		var cases = []int{0, 1, 50, 100, 1000, 2000, len(entries) - 1}
 		for _, pos := range cases {
@@ -438,7 +438,47 @@ func TestSingleSideRangeProof(t *testing.T) {
 				k = append(k, entries[i].k)
 				v = append(v, entries[i].v)
 			}
+<<<<<<< HEAD
 			_, err := VerifyRangeProof(trie.Hash(), common.Hash{}.Bytes(), k, v, proof)
+=======
+			_, err := VerifyRangeProof(trie.Hash(), common.Hash{}.Bytes(), k[len(k)-1], k, v, proof)
+			if err != nil {
+				t.Fatalf("Expected no error, got %v", err)
+			}
+		}
+	}
+}
+
+// TestReverseSingleSideRangeProof tests the range ends with 0xffff...fff.
+func TestReverseSingleSideRangeProof(t *testing.T) {
+	for i := 0; i < 64; i++ {
+		trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase()))
+		var entries []*kv
+		for i := 0; i < 4096; i++ {
+			value := &kv{randBytes(32), randBytes(20), false}
+			trie.MustUpdate(value.k, value.v)
+			entries = append(entries, value)
+		}
+		slices.SortFunc(entries, (*kv).less)
+
+		var cases = []int{0, 1, 50, 100, 1000, 2000, len(entries) - 1}
+		for _, pos := range cases {
+			proof := memorydb.New()
+			if err := trie.Prove(entries[pos].k, proof); err != nil {
+				t.Fatalf("Failed to prove the first node %v", err)
+			}
+			last := common.HexToHash("0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff")
+			if err := trie.Prove(last.Bytes(), proof); err != nil {
+				t.Fatalf("Failed to prove the last node %v", err)
+			}
+			k := make([][]byte, 0)
+			v := make([][]byte, 0)
+			for i := pos; i < len(entries); i++ {
+				k = append(k, entries[i].k)
+				v = append(v, entries[i].v)
+			}
+			_, err := VerifyRangeProof(trie.Hash(), k[0], last.Bytes(), k, v, proof)
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 			if err != nil {
 				t.Fatalf("Expected no error, got %v", err)
 			}
@@ -454,7 +494,7 @@ func TestBadRangeProof(t *testing.T) {
 	for _, kv := range vals {
 		entries = append(entries, kv)
 	}
-	slices.SortFunc(entries, (*kv).cmp)
+	slices.SortFunc(entries, (*kv).less)
 
 	for i := 0; i < 500; i++ {
 		start := mrand.Intn(len(entries))
@@ -520,7 +560,7 @@ func TestBadRangeProof(t *testing.T) {
 // TestGappedRangeProof focuses on the small trie with embedded nodes.
 // If the gapped node is embedded in the trie, it should be detected too.
 func TestGappedRangeProof(t *testing.T) {
-	trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase(), nil))
+	trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase()))
 	var entries []*kv // Sorted entries
 	for i := byte(0); i < 10; i++ {
 		value := &kv{common.LeftPadBytes([]byte{i}, 32), []byte{i}, false}
@@ -557,7 +597,7 @@ func TestSameSideProofs(t *testing.T) {
 	for _, kv := range vals {
 		entries = append(entries, kv)
 	}
-	slices.SortFunc(entries, (*kv).cmp)
+	slices.SortFunc(entries, (*kv).less)
 
 	pos := 1000
 	first := common.CopyBytes(entries[0].k)
@@ -592,14 +632,14 @@ func TestSameSideProofs(t *testing.T) {
 }
 
 func TestHasRightElement(t *testing.T) {
-	trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase(), nil))
+	trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase()))
 	var entries []*kv
 	for i := 0; i < 4096; i++ {
 		value := &kv{randBytes(32), randBytes(20), false}
 		trie.MustUpdate(value.k, value.v)
 		entries = append(entries, value)
 	}
-	slices.SortFunc(entries, (*kv).cmp)
+	slices.SortFunc(entries, (*kv).less)
 
 	var cases = []struct {
 		start   int
@@ -660,7 +700,7 @@ func TestEmptyRangeProof(t *testing.T) {
 	for _, kv := range vals {
 		entries = append(entries, kv)
 	}
-	slices.SortFunc(entries, (*kv).cmp)
+	slices.SortFunc(entries, (*kv).less)
 
 	var cases = []struct {
 		pos int
@@ -695,7 +735,7 @@ func TestBloatedProof(t *testing.T) {
 	for _, kv := range kvs {
 		entries = append(entries, kv)
 	}
-	slices.SortFunc(entries, (*kv).cmp)
+	slices.SortFunc(entries, (*kv).less)
 	var keys [][]byte
 	var vals [][]byte
 
@@ -729,7 +769,7 @@ func TestEmptyValueRangeProof(t *testing.T) {
 	for _, kv := range values {
 		entries = append(entries, kv)
 	}
-	slices.SortFunc(entries, (*kv).cmp)
+	slices.SortFunc(entries, (*kv).less)
 
 	// Create a new entry with a slightly modified key
 	mid := len(entries) / 2
@@ -773,7 +813,7 @@ func TestAllElementsEmptyValueRangeProof(t *testing.T) {
 	for _, kv := range values {
 		entries = append(entries, kv)
 	}
-	slices.SortFunc(entries, (*kv).cmp)
+	slices.SortFunc(entries, (*kv).less)
 
 	// Create a new entry with a slightly modified key
 	mid := len(entries) / 2
@@ -879,7 +919,7 @@ func benchmarkVerifyRangeProof(b *testing.B, size int) {
 	for _, kv := range vals {
 		entries = append(entries, kv)
 	}
-	slices.SortFunc(entries, (*kv).cmp)
+	slices.SortFunc(entries, (*kv).less)
 
 	start := 2
 	end := start + size
@@ -916,7 +956,7 @@ func benchmarkVerifyRangeNoProof(b *testing.B, size int) {
 	for _, kv := range vals {
 		entries = append(entries, kv)
 	}
-	slices.SortFunc(entries, (*kv).cmp)
+	slices.SortFunc(entries, (*kv).less)
 
 	var keys [][]byte
 	var values [][]byte
@@ -934,7 +974,7 @@ func benchmarkVerifyRangeNoProof(b *testing.B, size int) {
 }
 
 func randomTrie(n int) (*Trie, map[string]*kv) {
-	trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase(), nil))
+	trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase()))
 	vals := make(map[string]*kv)
 	for i := byte(0); i < 100; i++ {
 		value := &kv{common.LeftPadBytes([]byte{i}, 32), []byte{i}, false}
@@ -953,7 +993,7 @@ func randomTrie(n int) (*Trie, map[string]*kv) {
 }
 
 func nonRandomTrie(n int) (*Trie, map[string]*kv) {
-	trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase(), nil))
+	trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase()))
 	vals := make(map[string]*kv)
 	max := uint64(0xffffffffffffffff)
 	for i := uint64(0); i < uint64(n); i++ {
@@ -978,7 +1018,7 @@ func TestRangeProofKeysWithSharedPrefix(t *testing.T) {
 		common.Hex2Bytes("02"),
 		common.Hex2Bytes("03"),
 	}
-	trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase(), nil))
+	trie := NewEmpty(NewDatabase(rawdb.NewMemoryDatabase()))
 	for i, key := range keys {
 		trie.MustUpdate(key, vals[i])
 	}

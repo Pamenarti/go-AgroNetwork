@@ -138,10 +138,8 @@ func testCallTracer(tracerName string, dirPath string, t *testing.T) {
 					GasLimit:    uint64(test.Context.GasLimit),
 					BaseFee:     test.Genesis.BaseFee,
 				}
-				triedb, _, statedb = tests.MakePreState(rawdb.NewMemoryDatabase(), test.Genesis.Alloc, false, rawdb.HashScheme)
+				_, statedb = tests.MakePreState(rawdb.NewMemoryDatabase(), test.Genesis.Alloc, false)
 			)
-			triedb.Close()
-
 			tracer, err := tracers.DefaultDirectory.New(tracerName, new(tracers.Context), test.TracerConfig)
 			if err != nil {
 				t.Fatalf("failed to create call tracer: %v", err)
@@ -240,8 +238,7 @@ func benchTracer(tracerName string, test *callTracerTest, b *testing.B) {
 		Difficulty:  (*big.Int)(test.Context.Difficulty),
 		GasLimit:    uint64(test.Context.GasLimit),
 	}
-	triedb, _, statedb := tests.MakePreState(rawdb.NewMemoryDatabase(), test.Genesis.Alloc, false, rawdb.HashScheme)
-	defer triedb.Close()
+	_, statedb := tests.MakePreState(rawdb.NewMemoryDatabase(), test.Genesis.Alloc, false)
 
 	b.ReportAllocs()
 	b.ResetTimer()
@@ -367,7 +364,7 @@ func TestInternals(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			triedb, _, statedb := tests.MakePreState(rawdb.NewMemoryDatabase(),
+			_, statedb := tests.MakePreState(rawdb.NewMemoryDatabase(),
 				core.GenesisAlloc{
 					to: core.GenesisAccount{
 						Code: tc.code,
@@ -375,9 +372,7 @@ func TestInternals(t *testing.T) {
 					origin: core.GenesisAccount{
 						Balance: big.NewInt(500000000000000),
 					},
-				}, false, rawdb.HashScheme)
-			defer triedb.Close()
-
+				}, false)
 			evm := vm.NewEVM(context, txContext, statedb, params.MainnetChainConfig, vm.Config{Tracer: tc.tracer})
 			msg := &core.Message{
 				To:                &to,

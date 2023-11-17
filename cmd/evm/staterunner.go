@@ -23,9 +23,7 @@ import (
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/state"
-	"github.com/ethereum/go-ethereum/core/state/snapshot"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/tracers/logger"
 	"github.com/ethereum/go-ethereum/tests"
@@ -100,14 +98,15 @@ func runStateTest(fname string, cfg vm.Config, jsonOut, dump bool) error {
 		for _, st := range test.Subtests() {
 			// Run the test and aggregate the result
 			result := &StatetestResult{Name: key, Fork: st.Fork, Pass: true}
-			test.Run(st, cfg, false, rawdb.HashScheme, func(err error, snaps *snapshot.Tree, state *state.StateDB) {
-				if state != nil {
-					root := state.IntermediateRoot(false)
-					result.Root = &root
-					if jsonOut {
-						fmt.Fprintf(os.Stderr, "{\"stateRoot\": \"%#x\"}\n", root)
-					}
+			_, s, err := test.Run(st, cfg, false)
+			// print state root for evmlab tracing
+			if s != nil {
+				root := s.IntermediateRoot(false)
+				result.Root = &root
+				if jsonOut {
+					fmt.Fprintf(os.Stderr, "{\"stateRoot\": \"%#x\"}\n", root)
 				}
+<<<<<<< HEAD
 				// Dump any state to aid debugging
 				if dump {
 					dump := state.RawDump(nil)
@@ -116,8 +115,18 @@ func runStateTest(fname string, cfg vm.Config, jsonOut, dump bool) error {
 				if err != nil {
 					// Test failed, mark as so
 					result.Pass, result.Error = false, err.Error()
+=======
+			}
+			if err != nil {
+				// Test failed, mark as so and dump any state to aid debugging
+				result.Pass, result.Error = false, err.Error()
+				if dump && s != nil {
+					dump := s.RawDump(nil)
+					result.State = &dump
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 				}
-			})
+			}
+
 			results = append(results, *result)
 		}
 	}

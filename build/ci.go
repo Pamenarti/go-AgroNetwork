@@ -120,15 +120,24 @@ var (
 	// Distros for which packages are created.
 	// Note: vivid is unsupported because there is no golang-1.6 package for it.
 	// Note: the following Ubuntu releases have been officially deprecated on Launchpad:
-	//   wily, yakkety, zesty, artful, cosmic, disco, eoan, groovy, hirsuite, impish,
-	//   kinetic
+	//   wily, yakkety, zesty, artful, cosmic, disco, eoan, groovy, hirsuite, impish
 	debDistroGoBoots = map[string]string{
+<<<<<<< HEAD
 		"trusty": "golang-1.11", // EOL: 04/2024
 		"xenial": "golang-go",   // EOL: 04/2026
 		"bionic": "golang-go",   // EOL: 04/2028
 		"focal":  "golang-go",   // EOL: 04/2030
 		"jammy":  "golang-go",   // EOL: 04/2032
 		"lunar":  "golang-go",   // EOL: 01/2024
+=======
+		"trusty":  "golang-1.11", // EOL: 04/2024
+		"xenial":  "golang-go",   // EOL: 04/2026
+		"bionic":  "golang-go",   // EOL: 04/2028
+		"focal":   "golang-go",   // EOL: 04/2030
+		"jammy":   "golang-go",   // EOL: 04/2032
+		"kinetic": "golang-go",   // EOL: 07/2023
+		"lunar":   "golang-go",   // EOL: 01/2024
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	}
 
 	debGoBootPaths = map[string]string{
@@ -136,8 +145,23 @@ var (
 		"golang-go":   "/usr/lib/go",
 	}
 
+<<<<<<< HEAD
 	// This is where the tests should be unpacked.
 	executionSpecTestsDir = "tests/spec-tests"
+=======
+	// This is the version of Go that will be downloaded by
+	//
+	//     go run ci.go install -dlgo
+	dlgoVersion = "1.20.6"
+
+	// This is the version of Go that will be used to bootstrap the PPA builder.
+	//
+	// This version is fine to be old and full of security holes, we just use it
+	// to build the latest Go. Don't change it. If it ever becomes insufficient,
+	// we need to switch over to a recursive builder to jumpt across supported
+	// versions.
+	gobootVersion = "1.19.6"
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 )
 
 var GOBIN, _ = filepath.Abs(filepath.Join("build", "bin"))
@@ -192,7 +216,6 @@ func doInstall(cmdline []string) {
 		staticlink = flag.Bool("static", false, "Create statically-linked executable")
 	)
 	flag.CommandLine.Parse(cmdline)
-	env := build.Env()
 
 	// Configure the toolchain.
 	tc := build.GoToolchain{GOARCH: *arch, CC: *cc}
@@ -200,6 +223,7 @@ func doInstall(cmdline []string) {
 		csdb := build.MustLoadChecksums("build/checksums.txt")
 		tc.Root = build.DownloadGo(csdb)
 	}
+<<<<<<< HEAD
 	// Disable CLI markdown doc generation in release builds.
 	buildTags := []string{"urfave_cli_no_docs"}
 
@@ -207,8 +231,14 @@ func doInstall(cmdline []string) {
 	if env.UbuntuVersion != "trusty" {
 		buildTags = append(buildTags, "ckzg")
 	}
+=======
+	// Disable CLI markdown doc generation in release builds and enable linking
+	// the CKZG library since we can make it portable here.
+	buildTags := []string{"urfave_cli_no_docs", "ckzg"}
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 
 	// Configure the build.
+	env := build.Env()
 	gobuild := tc.Go("build", buildFlags(env, *staticlink, buildTags)...)
 
 	// arm64 CI builders are memory-constrained and can't handle concurrent builds,
@@ -299,13 +329,7 @@ func doTest(cmdline []string) {
 	if *dlgo {
 		tc.Root = build.DownloadGo(csdb)
 	}
-	gotest := tc.Go("test")
-
-	// CI needs a bit more time for the statetests (default 10m).
-	gotest.Args = append(gotest.Args, "-timeout=20m")
-
-	// Enable CKZG backend in CI.
-	gotest.Args = append(gotest.Args, "-tags=ckzg")
+	gotest := tc.Go("test", "-tags=ckzg")
 
 	// Enable integration-tests
 	gotest.Args = append(gotest.Args, "-tags=integrationtests")

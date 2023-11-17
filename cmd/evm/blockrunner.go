@@ -24,7 +24,6 @@ import (
 	"regexp"
 	"sort"
 
-	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/eth/tracers/logger"
 	"github.com/ethereum/go-ethereum/tests"
@@ -69,6 +68,7 @@ func blockTestCmd(ctx *cli.Context) error {
 	if err = json.Unmarshal(src, &tests); err != nil {
 		return err
 	}
+<<<<<<< HEAD
 	re, err := regexp.Compile(ctx.String(RunFlag.Name))
 	if err != nil {
 		return fmt.Errorf("invalid regex -%s: %v", RunFlag.Name, err)
@@ -87,6 +87,11 @@ func blockTestCmd(ctx *cli.Context) error {
 		test := tests[name]
 		if err := test.Run(false, rawdb.HashScheme, tracer); err != nil {
 			return fmt.Errorf("test %v: %w", name, err)
+=======
+	for i, test := range tests {
+		if err := test.Run(false, tracer); err != nil {
+			return fmt.Errorf("test %v: %w", i, err)
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 		}
 	}
 	return nil

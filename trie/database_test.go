@@ -20,13 +20,13 @@ import (
 	"github.com/ethereum/go-ethereum/core/rawdb"
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/trie/triedb/hashdb"
-	"github.com/ethereum/go-ethereum/trie/triedb/pathdb"
 )
 
 // newTestDatabase initializes the trie database with specified scheme.
 func newTestDatabase(diskdb ethdb.Database, scheme string) *Database {
 	config := &Config{Preimages: false}
 	if scheme == rawdb.HashScheme {
+<<<<<<< HEAD
 		config.HashDB = &hashdb.Config{
 			CleanCacheSize: 0,
 		} // disable clean cache
@@ -37,4 +37,12 @@ func newTestDatabase(diskdb ethdb.Database, scheme string) *Database {
 		} // disable clean/dirty cache
 	}
 	return NewDatabase(diskdb, config)
+=======
+		db.backend = hashdb.New(diskdb, db.cleans, mptResolver{})
+	}
+	//} else {
+	//	db.backend = snap.New(diskdb, db.cleans, nil)
+	//}
+	return db
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 }

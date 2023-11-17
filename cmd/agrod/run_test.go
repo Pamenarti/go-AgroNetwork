@@ -28,7 +28,7 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-type testagrod struct {
+type testgeth struct {
 	*cmdtest.TestCmd
 
 	// template variables for expect
@@ -37,8 +37,13 @@ type testagrod struct {
 }
 
 func init() {
+<<<<<<< HEAD
 	// Run the app if we've been exec'd as "agrod-test" in runGeth.
 	reexec.Register("agrod-test", func() {
+=======
+	// Run the app if we've been exec'd as "geth-test" in runGeth.
+	reexec.Register("geth-test", func() {
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 		if err := app.Run(os.Args); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			os.Exit(1)
@@ -55,10 +60,15 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-// spawns agrod with the given command line args. If the args don't set --datadir, the
+// spawns geth with the given command line args. If the args don't set --datadir, the
 // child g gets a temporary data directory.
+<<<<<<< HEAD
 func runGeth(t *testing.T, args ...string) *testagrod {
 	tt := &testagrod{}
+=======
+func runGeth(t *testing.T, args ...string) *testgeth {
+	tt := &testgeth{}
+>>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	tt.TestCmd = cmdtest.NewTestCmd(t, tt)
 	for i, arg := range args {
 		switch arg {
@@ -78,9 +88,9 @@ func runGeth(t *testing.T, args ...string) *testagrod {
 		args = append([]string{"--datadir", tt.Datadir}, args...)
 	}
 
-	// Boot "agrod". This actually runs the test binary but the TestMain
+	// Boot "geth". This actually runs the test binary but the TestMain
 	// function will prevent any tests from running.
-	tt.Run("agrod-test", args...)
+	tt.Run("geth-test", args...)
 
 	return tt
 }
