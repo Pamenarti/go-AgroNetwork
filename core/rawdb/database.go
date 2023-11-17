@@ -124,13 +124,13 @@ func (db *nofreezedb) ModifyAncients(func(ethdb.AncientWriteOp) error) (int64, e
 }
 
 // TruncateHead returns an error as we don't have a backing chain freezer.
-func (db *nofreezedb) TruncateHead(items uint64) error {
-	return errNotSupported
+func (db *nofreezedb) TruncateHead(items uint64) (uint64, error) {
+	return 0, errNotSupported
 }
 
 // TruncateTail returns an error as we don't have a backing chain freezer.
-func (db *nofreezedb) TruncateTail(items uint64) error {
-	return errNotSupported
+func (db *nofreezedb) TruncateTail(items uint64) (uint64, error) {
+	return 0, errNotSupported
 }
 
 // Sync returns an error as we don't have a backing chain freezer.
@@ -337,10 +337,10 @@ const (
 	dbLeveldb = "leveldb"
 )
 
-// hasPreexistingDb checks the given data directory whether a database is already
+// PreexistingDatabase checks the given data directory whether a database is already
 // instantiated at that location, and if so, returns the type of database (or the
 // empty string).
-func hasPreexistingDb(path string) string {
+func PreexistingDatabase(path string) string {
 	if _, err := os.Stat(filepath.Join(path, "CURRENT")); err != nil {
 		return "" // No pre-existing db
 	}
@@ -363,6 +363,9 @@ type OpenOptions struct {
 	Cache             int    // the capacity(in megabytes) of the data caching
 	Handles           int    // number of files to be open simultaneously
 	ReadOnly          bool
+	// Ephemeral means that filesystem sync operations should be avoided: data integrity in the face of
+	// a crash is not important. This option should typically be used in tests.
+	Ephemeral bool
 }
 
 // openKeyValueDatabase opens a disk-based key-value database, e.g. leveldb or pebble.
@@ -378,42 +381,21 @@ func openKeyValueDatabase(o OpenOptions) (ethdb.Database, error) {
 	}
 	// Retrieve any pre-existing database's type and use that or the requested one
 	// as long as there's no conflict between the two types
-	existingDb := hasPreexistingDb(o.Directory)
+	existingDb := PreexistingDatabase(o.Directory)
 	if len(existingDb) != 0 && len(o.Type) != 0 && o.Type != existingDb {
 		return nil, fmt.Errorf("db.engine choice was %v but found pre-existing %v database in specified data directory", o.Type, existingDb)
 	}
 	if o.Type == dbPebble || existingDb == dbPebble {
-<<<<<<< HEAD
 		log.Info("Using pebble as the backing database")
 		return NewPebbleDBDatabase(o.Directory, o.Cache, o.Handles, o.Namespace, o.ReadOnly, o.Ephemeral)
-=======
-		if PebbleEnabled {
-			log.Info("Using pebble as the backing database")
-			return NewPebbleDBDatabase(o.Directory, o.Cache, o.Handles, o.Namespace, o.ReadOnly)
-		} else {
-			return nil, errors.New("db.engine 'pebble' not supported on this platform")
-		}
->>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	}
 	if o.Type == dbLeveldb || existingDb == dbLeveldb {
 		log.Info("Using leveldb as the backing database")
 		return NewLevelDBDatabase(o.Directory, o.Cache, o.Handles, o.Namespace, o.ReadOnly)
 	}
-<<<<<<< HEAD
 	// No pre-existing database, no user-requested one either. Default to Pebble.
 	log.Info("Defaulting to pebble as the backing database")
 	return NewPebbleDBDatabase(o.Directory, o.Cache, o.Handles, o.Namespace, o.ReadOnly, o.Ephemeral)
-=======
-	// No pre-existing database, no user-requested one either. Default to Pebble
-	// on supported platforms and LevelDB on anything else.
-	if PebbleEnabled {
-		log.Info("Defaulting to pebble as the backing database")
-		return NewPebbleDBDatabase(o.Directory, o.Cache, o.Handles, o.Namespace, o.ReadOnly)
-	} else {
-		log.Info("Defaulting to leveldb as the backing database")
-		return NewLevelDBDatabase(o.Directory, o.Cache, o.Handles, o.Namespace, o.ReadOnly)
-	}
->>>>>>> parent of 69519f4 (Sum Agro Update v1)
 }
 
 // Open opens both a disk-based key-value database such as leveldb or pebble, but also
@@ -485,7 +467,10 @@ func InspectDatabase(db ethdb.Database, keyPrefix, keyStart []byte) error {
 		tds             stat
 		numHashPairings stat
 		hashNumPairings stat
-		tries           stat
+		legacyTries     stat
+		stateLookups    stat
+		accountTries    stat
+		storageTries    stat
 		codes           stat
 		txLookups       stat
 		accountSnaps    stat
@@ -526,8 +511,14 @@ func InspectDatabase(db ethdb.Database, keyPrefix, keyStart []byte) error {
 			numHashPairings.Add(size)
 		case bytes.HasPrefix(key, headerNumberPrefix) && len(key) == (len(headerNumberPrefix)+common.HashLength):
 			hashNumPairings.Add(size)
-		case len(key) == common.HashLength:
-			tries.Add(size)
+		case IsLegacyTrieNode(key, it.Value()):
+			legacyTries.Add(size)
+		case bytes.HasPrefix(key, stateIDPrefix) && len(key) == len(stateIDPrefix)+common.HashLength:
+			stateLookups.Add(size)
+		case IsAccountTrieNode(key):
+			accountTries.Add(size)
+		case IsStorageTrieNode(key):
+			storageTries.Add(size)
 		case bytes.HasPrefix(key, CodePrefix) && len(key) == len(CodePrefix)+common.HashLength:
 			codes.Add(size)
 		case bytes.HasPrefix(key, txLookupPrefix) && len(key) == (len(txLookupPrefix)+common.HashLength):
@@ -565,10 +556,7 @@ func InspectDatabase(db ethdb.Database, keyPrefix, keyStart []byte) error {
 				lastPivotKey, fastTrieProgressKey, snapshotDisabledKey, SnapshotRootKey, snapshotJournalKey,
 				snapshotGeneratorKey, snapshotRecoveryKey, txIndexTailKey, fastTxLookupLimitKey,
 				uncleanShutdownKey, badBlockKey, transitionStatusKey, skeletonSyncStatusKey,
-<<<<<<< HEAD
 				persistentStateIDKey, trieJournalKey, snapshotSyncStatusKey, snapSyncStatusFlagKey,
-=======
->>>>>>> parent of 69519f4 (Sum Agro Update v1)
 			} {
 				if bytes.Equal(key, meta) {
 					metadata.Add(size)
@@ -597,7 +585,10 @@ func InspectDatabase(db ethdb.Database, keyPrefix, keyStart []byte) error {
 		{"Key-Value store", "Transaction index", txLookups.Size(), txLookups.Count()},
 		{"Key-Value store", "Bloombit index", bloomBits.Size(), bloomBits.Count()},
 		{"Key-Value store", "Contract codes", codes.Size(), codes.Count()},
-		{"Key-Value store", "Trie nodes", tries.Size(), tries.Count()},
+		{"Key-Value store", "Hash trie nodes", legacyTries.Size(), legacyTries.Count()},
+		{"Key-Value store", "Path trie state lookups", stateLookups.Size(), stateLookups.Count()},
+		{"Key-Value store", "Path trie account nodes", accountTries.Size(), accountTries.Count()},
+		{"Key-Value store", "Path trie storage nodes", storageTries.Size(), storageTries.Count()},
 		{"Key-Value store", "Trie preimages", preimages.Size(), preimages.Count()},
 		{"Key-Value store", "Account snapshot", accountSnaps.Size(), accountSnaps.Count()},
 		{"Key-Value store", "Storage snapshot", storageSnaps.Size(), storageSnaps.Count()},

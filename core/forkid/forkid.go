@@ -72,9 +72,9 @@ type ID struct {
 type Filter func(id ID) error
 
 // NewID calculates the Ethereum fork ID from the chain config, genesis hash, head and time.
-func NewID(config *params.ChainConfig, genesis common.Hash, head, time uint64) ID {
+func NewID(config *params.ChainConfig, genesis *types.Block, head, time uint64) ID {
 	// Calculate the starting checksum from the genesis hash
-	hash := crc32.ChecksumIEEE(genesis[:])
+	hash := crc32.ChecksumIEEE(genesis.Hash().Bytes())
 
 	// Calculate the current fork checksum and the next fork block
 	forksByBlock, forksByTime := gatherForks(config, genesis.Time())
@@ -103,7 +103,7 @@ func NewIDWithChain(chain Blockchain) ID {
 
 	return NewID(
 		chain.Config(),
-		chain.Genesis().Hash(),
+		chain.Genesis(),
 		head.Number.Uint64(),
 		head.Time,
 	)

@@ -20,12 +20,9 @@ import (
 	"math/rand"
 	"runtime"
 	"testing"
-<<<<<<< HEAD
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/rawdb"
-=======
->>>>>>> parent of 69519f4 (Sum Agro Update v1)
 )
 
 func TestBlockchain(t *testing.T) {
@@ -54,16 +51,8 @@ func TestBlockchain(t *testing.T) {
 	bt.skipLoad(`.*randomStatetest94.json.*`)
 
 	bt.walk(t, blockTestDir, func(t *testing.T, name string, test *BlockTest) {
-<<<<<<< HEAD
 		if runtime.GOARCH == "386" && runtime.GOOS == "windows" && rand.Int63()%2 == 0 {
 			t.Skip("test (randomly) skipped on 32-bit windows")
-=======
-		if err := bt.checkFailure(t, test.Run(false, nil)); err != nil {
-			t.Errorf("test without snapshotter failed: %v", err)
-		}
-		if err := bt.checkFailure(t, test.Run(true, nil)); err != nil {
-			t.Errorf("test with snapshotter failed: %v", err)
->>>>>>> parent of 69519f4 (Sum Agro Update v1)
 		}
 		execBlockTest(t, bt, test)
 	})

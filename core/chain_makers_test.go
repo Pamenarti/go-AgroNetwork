@@ -31,6 +31,7 @@ import (
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/ethereum/go-ethereum/params"
+	"github.com/ethereum/go-ethereum/trie"
 )
 
 func TestGeneratePOSChain(t *testing.T) {
@@ -80,8 +81,7 @@ func TestGeneratePOSChain(t *testing.T) {
 		Storage: storage,
 		Code:    common.Hex2Bytes("600154600354"),
 	}
-
-	genesis := gspec.MustCommit(gendb)
+	genesis := gspec.MustCommit(gendb, trie.NewDatabase(gendb, trie.HashDefaults))
 
 	genchain, genreceipts := GenerateChain(gspec.Config, genesis, beacon.NewFaker(), gendb, 4, func(i int, gen *BlockGen) {
 		gen.SetParentBeaconRoot(common.Hash{byte(i + 1)})
@@ -196,6 +196,7 @@ func ExampleGenerateChain() {
 		addr2   = crypto.PubkeyToAddress(key2.PublicKey)
 		addr3   = crypto.PubkeyToAddress(key3.PublicKey)
 		db      = rawdb.NewMemoryDatabase()
+		genDb   = rawdb.NewMemoryDatabase()
 	)
 
 	// Ensure that key1 has some funds in the genesis block.
@@ -203,13 +204,13 @@ func ExampleGenerateChain() {
 		Config: &params.ChainConfig{HomesteadBlock: new(big.Int)},
 		Alloc:  GenesisAlloc{addr1: {Balance: big.NewInt(1000000)}},
 	}
-	genesis := gspec.MustCommit(db)
+	genesis := gspec.MustCommit(genDb, trie.NewDatabase(genDb, trie.HashDefaults))
 
 	// This call generates a chain of 5 blocks. The function runs for
 	// each block and adds different features to gen based on the
 	// block index.
 	signer := types.HomesteadSigner{}
-	chain, _ := GenerateChain(gspec.Config, genesis, ethash.NewFaker(), db, 5, func(i int, gen *BlockGen) {
+	chain, _ := GenerateChain(gspec.Config, genesis, ethash.NewFaker(), genDb, 5, func(i int, gen *BlockGen) {
 		switch i {
 		case 0:
 			// In block 1, addr1 sends addr2 some ether.
@@ -238,7 +239,7 @@ func ExampleGenerateChain() {
 	})
 
 	// Import the chain. This runs all block validation rules.
-	blockchain, _ := NewBlockChain(db, nil, gspec, nil, ethash.NewFaker(), vm.Config{}, nil, nil)
+	blockchain, _ := NewBlockChain(db, DefaultCacheConfigWithScheme(rawdb.HashScheme), gspec, nil, ethash.NewFaker(), vm.Config{}, nil, nil)
 	defer blockchain.Stop()
 
 	if i, err := blockchain.InsertChain(chain); err != nil {

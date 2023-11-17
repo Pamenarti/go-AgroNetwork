@@ -26,9 +26,11 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/consensus"
-	"github.com/ethereum/go-ethereum/consensus/misc"
+	"github.com/ethereum/go-ethereum/consensus/misc/eip1559"
+	"github.com/ethereum/go-ethereum/consensus/misc/eip4844"
 	"github.com/ethereum/go-ethereum/core"
 	"github.com/ethereum/go-ethereum/core/state"
+	"github.com/ethereum/go-ethereum/core/txpool"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/core/vm"
 	"github.com/ethereum/go-ethereum/event"
@@ -89,6 +91,8 @@ type environment struct {
 	header   *types.Header
 	txs      []*types.Transaction
 	receipts []*types.Receipt
+	sidecars []*types.BlobTxSidecar
+	blobs    int
 }
 
 // copy creates a deep copy of environment.
@@ -107,6 +111,10 @@ func (env *environment) copy() *environment {
 	}
 	cpy.txs = make([]*types.Transaction, len(env.txs))
 	copy(cpy.txs, env.txs)
+
+	cpy.sidecars = make([]*types.BlobTxSidecar, len(env.sidecars))
+	copy(cpy.sidecars, env.sidecars)
+
 	return cpy
 }
 
@@ -141,11 +149,12 @@ type newWorkReq struct {
 	timestamp int64
 }
 
-// newPayloadResult represents a result struct corresponds to payload generation.
+// newPayloadResult is the result of payload generation.
 type newPayloadResult struct {
-	err   error
-	block *types.Block
-	fees  *big.Int
+	err      error
+	block    *types.Block
+	fees     *big.Int               // total block fees
+	sidecars []*types.BlobTxSidecar // collected blobs of blob transactions
 }
 
 // getWorkReq represents a request for getting a new sealing work with provided parameters.
@@ -516,12 +525,7 @@ func (w *worker) mainLoop() {
 			w.commitWork(req.interrupt, req.timestamp)
 
 		case req := <-w.getWorkCh:
-			block, fees, err := w.generateWork(req.params)
-			req.result <- &newPayloadResult{
-				err:   err,
-				block: block,
-				fees:  fees,
-			}
+			req.result <- w.generateWork(req.params)
 
 		case ev := <-w.txsCh:
 			// Apply transactions to the pending state if we're not sealing
@@ -534,10 +538,9 @@ func (w *worker) mainLoop() {
 				if gp := w.current.gasPool; gp != nil && gp.Gas() < params.TxGas {
 					continue
 				}
-				txs := make(map[common.Address][]*types.Transaction, len(ev.Txs))
+				txs := make(map[common.Address][]*txpool.LazyTransaction, len(ev.Txs))
 				for _, tx := range ev.Txs {
 					acc, _ := types.Sender(w.current.signer, tx)
-<<<<<<< HEAD
 					txs[acc] = append(txs[acc], &txpool.LazyTransaction{
 						Pool:      w.eth.TxPool(), // We don't know where this came from, yolo resolve from everywhere
 						Hash:      tx.Hash(),
@@ -548,11 +551,8 @@ func (w *worker) mainLoop() {
 						Gas:       tx.Gas(),
 						BlobGas:   tx.BlobGas(),
 					})
-=======
-					txs[acc] = append(txs[acc], tx)
->>>>>>> parent of 69519f4 (Sum Agro Update v1)
 				}
-				txset := types.NewTransactionsByPriceAndNonce(w.current.signer, txs, w.current.header.BaseFee)
+				txset := newTransactionsByPriceAndNonce(w.current.signer, txs, w.current.header.BaseFee)
 				tcount := w.current.tcount
 				w.commitTransactions(w.current, txset, nil)
 
@@ -742,7 +742,6 @@ func (w *worker) updateSnapshot(env *environment) {
 }
 
 func (w *worker) commitTransaction(env *environment, tx *types.Transaction) ([]*types.Log, error) {
-<<<<<<< HEAD
 	if tx.Type() == types.BlobTxType {
 		return w.commitBlobTransaction(env, tx)
 	}
@@ -768,19 +767,11 @@ func (w *worker) commitBlobTransaction(env *environment, tx *types.Transaction) 
 		return nil, errors.New("max data blobs reached")
 	}
 	receipt, err := w.applyTransaction(env, tx)
-=======
-	var (
-		snap = env.state.Snapshot()
-		gp   = env.gasPool.Gas()
-	)
-	receipt, err := core.ApplyTransaction(w.chainConfig, w.chain, &env.coinbase, env.gasPool, env.state, env.header, tx, &env.header.GasUsed, *w.chain.GetVMConfig())
->>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	if err != nil {
 		return nil, err
 	}
-	env.txs = append(env.txs, tx)
+	env.txs = append(env.txs, tx.WithoutBlobTxSidecar())
 	env.receipts = append(env.receipts, receipt)
-<<<<<<< HEAD
 	env.sidecars = append(env.sidecars, sc)
 	env.blobs += len(sc.Blobs)
 	*env.header.BlobGasUsed += receipt.BlobGasUsed
@@ -802,13 +793,6 @@ func (w *worker) applyTransaction(env *environment, tx *types.Transaction) (*typ
 }
 
 func (w *worker) commitTransactions(env *environment, txs *transactionsByPriceAndNonce, interrupt *atomic.Int32) error {
-=======
-
-	return receipt.Logs, nil
-}
-
-func (w *worker) commitTransactions(env *environment, txs *types.TransactionsByPriceAndNonce, interrupt *atomic.Int32) error {
->>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	gasLimit := env.header.GasLimit
 	if env.gasPool == nil {
 		env.gasPool = new(core.GasPool).AddGas(gasLimit)
@@ -828,11 +812,10 @@ func (w *worker) commitTransactions(env *environment, txs *types.TransactionsByP
 			break
 		}
 		// Retrieve the next transaction and abort if all done.
-		tx := txs.Peek()
-		if tx == nil {
+		ltx := txs.Peek()
+		if ltx == nil {
 			break
 		}
-<<<<<<< HEAD
 		// If we don't have enough space for the next transaction, skip the account.
 		if env.gasPool.Gas() < ltx.Gas {
 			log.Trace("Not enough gas left for transaction", "hash", ltx.Hash, "left", env.gasPool.Gas(), "needed", ltx.Gas)
@@ -851,8 +834,6 @@ func (w *worker) commitTransactions(env *environment, txs *types.TransactionsByP
 			txs.Pop()
 			continue
 		}
-=======
->>>>>>> parent of 69519f4 (Sum Agro Update v1)
 		// Error may be ignored here. The error has already been checked
 		// during transaction acceptance is the transaction pool.
 		from, _ := types.Sender(env.signer, tx)
@@ -860,12 +841,7 @@ func (w *worker) commitTransactions(env *environment, txs *types.TransactionsByP
 		// Check whether the tx is replay protected. If we're not in the EIP155 hf
 		// phase, start ignoring the sender until we do.
 		if tx.Protected() && !w.chainConfig.IsEIP155(env.header.Number) {
-<<<<<<< HEAD
 			log.Trace("Ignoring replay protected transaction", "hash", ltx.Hash, "eip155", w.chainConfig.EIP155Block)
-=======
-			log.Trace("Ignoring reply protected transaction", "hash", tx.Hash(), "eip155", w.chainConfig.EIP155Block)
-
->>>>>>> parent of 69519f4 (Sum Agro Update v1)
 			txs.Pop()
 			continue
 		}
@@ -965,13 +941,12 @@ func (w *worker) prepareWork(genParams *generateParams) (*environment, error) {
 	}
 	// Set baseFee and GasLimit if we are on an EIP-1559 chain
 	if w.chainConfig.IsLondon(header.Number) {
-		header.BaseFee = misc.CalcBaseFee(w.chainConfig, parent)
+		header.BaseFee = eip1559.CalcBaseFee(w.chainConfig, parent)
 		if !w.chainConfig.IsLondon(parent.Number) {
 			parentGasLimit := parent.GasLimit * w.chainConfig.ElasticityMultiplier()
 			header.GasLimit = core.CalcGasLimit(parentGasLimit, w.config.GasCeil)
 		}
 	}
-<<<<<<< HEAD
 	// Apply EIP-4844, EIP-4788.
 	if w.chainConfig.IsCancun(header.Number, header.Time) {
 		var excessBlobGas uint64
@@ -985,8 +960,6 @@ func (w *worker) prepareWork(genParams *generateParams) (*environment, error) {
 		header.ExcessBlobGas = &excessBlobGas
 		header.ParentBeaconRoot = genParams.beaconRoot
 	}
-=======
->>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	// Run the consensus preparation with the default or customized consensus engine.
 	if err := w.engine.Prepare(w.chain, header); err != nil {
 		log.Error("Failed to prepare header for sealing", "err", err)
@@ -1012,25 +985,26 @@ func (w *worker) prepareWork(genParams *generateParams) (*environment, error) {
 // into the given sealing block. The transaction selection and ordering strategy can
 // be customized with the plugin in the future.
 func (w *worker) fillTransactions(interrupt *atomic.Int32, env *environment) error {
-	// Split the pending transactions into locals and remotes
-	// Fill the block with all available pending transactions.
 	pending := w.eth.TxPool().Pending(true)
 
-	localTxs, remoteTxs := make(map[common.Address][]*types.Transaction), pending
+	// Split the pending transactions into locals and remotes.
+	localTxs, remoteTxs := make(map[common.Address][]*txpool.LazyTransaction), pending
 	for _, account := range w.eth.TxPool().Locals() {
 		if txs := remoteTxs[account]; len(txs) > 0 {
 			delete(remoteTxs, account)
 			localTxs[account] = txs
 		}
 	}
+
+	// Fill the block with all available pending transactions.
 	if len(localTxs) > 0 {
-		txs := types.NewTransactionsByPriceAndNonce(env.signer, localTxs, env.header.BaseFee)
+		txs := newTransactionsByPriceAndNonce(env.signer, localTxs, env.header.BaseFee)
 		if err := w.commitTransactions(env, txs, interrupt); err != nil {
 			return err
 		}
 	}
 	if len(remoteTxs) > 0 {
-		txs := types.NewTransactionsByPriceAndNonce(env.signer, remoteTxs, env.header.BaseFee)
+		txs := newTransactionsByPriceAndNonce(env.signer, remoteTxs, env.header.BaseFee)
 		if err := w.commitTransactions(env, txs, interrupt); err != nil {
 			return err
 		}
@@ -1039,10 +1013,10 @@ func (w *worker) fillTransactions(interrupt *atomic.Int32, env *environment) err
 }
 
 // generateWork generates a sealing block based on the given parameters.
-func (w *worker) generateWork(params *generateParams) (*types.Block, *big.Int, error) {
+func (w *worker) generateWork(params *generateParams) *newPayloadResult {
 	work, err := w.prepareWork(params)
 	if err != nil {
-		return nil, nil, err
+		return &newPayloadResult{err: err}
 	}
 	defer work.discard()
 
@@ -1060,9 +1034,13 @@ func (w *worker) generateWork(params *generateParams) (*types.Block, *big.Int, e
 	}
 	block, err := w.engine.FinalizeAndAssemble(w.chain, work.header, work.state, work.txs, nil, work.receipts, params.withdrawals)
 	if err != nil {
-		return nil, nil, err
+		return &newPayloadResult{err: err}
 	}
-	return block, totalFees(block, work.receipts), nil
+	return &newPayloadResult{
+		block:    block,
+		fees:     totalFees(block, work.receipts),
+		sidecars: work.sidecars,
+	}
 }
 
 // commitWork generates several new sealing tasks based on the parent block
@@ -1171,28 +1149,16 @@ func (w *worker) commit(env *environment, interval func(), update bool, start ti
 // getSealingBlock generates the sealing block based on the given parameters.
 // The generation result will be passed back via the given channel no matter
 // the generation itself succeeds or not.
-func (w *worker) getSealingBlock(parent common.Hash, timestamp uint64, coinbase common.Address, random common.Hash, withdrawals types.Withdrawals, noTxs bool) (*types.Block, *big.Int, error) {
+func (w *worker) getSealingBlock(params *generateParams) *newPayloadResult {
 	req := &getWorkReq{
-		params: &generateParams{
-			timestamp:   timestamp,
-			forceTime:   true,
-			parentHash:  parent,
-			coinbase:    coinbase,
-			random:      random,
-			withdrawals: withdrawals,
-			noTxs:       noTxs,
-		},
+		params: params,
 		result: make(chan *newPayloadResult, 1),
 	}
 	select {
 	case w.getWorkCh <- req:
-		result := <-req.result
-		if result.err != nil {
-			return nil, nil, result.err
-		}
-		return result.block, result.fees, nil
+		return <-req.result
 	case <-w.exitCh:
-		return nil, nil, errors.New("miner closed")
+		return &newPayloadResult{err: errors.New("miner closed")}
 	}
 }
 

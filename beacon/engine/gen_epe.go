@@ -17,20 +17,14 @@ func (e ExecutionPayloadEnvelope) MarshalJSON() ([]byte, error) {
 	type ExecutionPayloadEnvelope struct {
 		ExecutionPayload *ExecutableData `json:"executionPayload"  gencodec:"required"`
 		BlockValue       *hexutil.Big    `json:"blockValue"  gencodec:"required"`
-<<<<<<< HEAD
 		BlobsBundle      *BlobsBundleV1  `json:"blobsBundle"`
 		Override         bool            `json:"shouldOverrideBuilder"`
-=======
->>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	}
 	var enc ExecutionPayloadEnvelope
 	enc.ExecutionPayload = e.ExecutionPayload
 	enc.BlockValue = (*hexutil.Big)(e.BlockValue)
-<<<<<<< HEAD
 	enc.BlobsBundle = e.BlobsBundle
 	enc.Override = e.Override
-=======
->>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	return json.Marshal(&enc)
 }
 
@@ -39,11 +33,8 @@ func (e *ExecutionPayloadEnvelope) UnmarshalJSON(input []byte) error {
 	type ExecutionPayloadEnvelope struct {
 		ExecutionPayload *ExecutableData `json:"executionPayload"  gencodec:"required"`
 		BlockValue       *hexutil.Big    `json:"blockValue"  gencodec:"required"`
-<<<<<<< HEAD
 		BlobsBundle      *BlobsBundleV1  `json:"blobsBundle"`
 		Override         *bool           `json:"shouldOverrideBuilder"`
-=======
->>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	}
 	var dec ExecutionPayloadEnvelope
 	if err := json.Unmarshal(input, &dec); err != nil {
@@ -57,14 +48,11 @@ func (e *ExecutionPayloadEnvelope) UnmarshalJSON(input []byte) error {
 		return errors.New("missing required field 'blockValue' for ExecutionPayloadEnvelope")
 	}
 	e.BlockValue = (*big.Int)(dec.BlockValue)
-<<<<<<< HEAD
 	if dec.BlobsBundle != nil {
 		e.BlobsBundle = dec.BlobsBundle
 	}
 	if dec.Override != nil {
 		e.Override = *dec.Override
 	}
-=======
->>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	return nil
 }

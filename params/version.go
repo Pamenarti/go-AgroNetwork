@@ -22,13 +22,8 @@ import (
 
 const (
 	VersionMajor = 1          // Major version component of the current release
-<<<<<<< HEAD
 	VersionMinor = 13         // Minor version component of the current release
 	VersionPatch = 5          // Patch version component of the current release
-=======
-	VersionMinor = 12         // Minor version component of the current release
-	VersionPatch = 1          // Patch version component of the current release
->>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	VersionMeta  = "unstable" // Version metadata to append to the version string
 )
 

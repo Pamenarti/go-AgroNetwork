@@ -39,6 +39,7 @@ import (
 	"github.com/ethereum/go-ethereum/internal/flags"
 	"github.com/ethereum/go-ethereum/params"
 	"github.com/ethereum/go-ethereum/trie"
+	"github.com/ethereum/go-ethereum/trie/triedb/hashdb"
 	"github.com/urfave/cli/v2"
 )
 
@@ -138,26 +139,12 @@ func runCmd(ctx *cli.Context) error {
 	genesisConfig := new(core.Genesis)
 	genesisConfig.GasLimit = initialGas
 	if ctx.String(GenesisFlag.Name) != "" {
-<<<<<<< HEAD
 		genesisConfig = readGenesis(ctx.String(GenesisFlag.Name))
 		if genesisConfig.GasLimit != 0 {
 			initialGas = genesisConfig.GasLimit
 		}
 	} else {
 		genesisConfig.Config = params.AllEthashProtocolChanges
-=======
-		gen := readGenesis(ctx.String(GenesisFlag.Name))
-		genesisConfig = gen
-		db := rawdb.NewMemoryDatabase()
-		genesis := gen.MustCommit(db)
-		sdb := state.NewDatabaseWithConfig(db, &trie.Config{Preimages: preimages})
-		statedb, _ = state.New(genesis.Root(), sdb, nil)
-		chainConfig = gen.Config
-	} else {
-		sdb := state.NewDatabaseWithConfig(rawdb.NewMemoryDatabase(), &trie.Config{Preimages: preimages})
-		statedb, _ = state.New(types.EmptyRootHash, sdb, nil)
-		genesisConfig = new(core.Genesis)
->>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	}
 
 	db := rawdb.NewMemoryDatabase()
@@ -284,8 +271,7 @@ func runCmd(ctx *cli.Context) error {
 	output, leftOverGas, stats, err := timedExec(bench, execFunc)
 
 	if ctx.Bool(DumpFlag.Name) {
-		statedb.Commit(true)
-		statedb.IntermediateRoot(true)
+		statedb.Commit(genesisConfig.Number, true)
 		fmt.Println(string(statedb.Dump(nil)))
 	}
 

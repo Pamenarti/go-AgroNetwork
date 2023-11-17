@@ -69,10 +69,7 @@ func NewEVMBlockContext(header *types.Header, chain ChainContext, author *common
 		Time:        header.Time,
 		Difficulty:  new(big.Int).Set(header.Difficulty),
 		BaseFee:     baseFee,
-<<<<<<< HEAD
 		BlobBaseFee: blobBaseFee,
-=======
->>>>>>> parent of 69519f4 (Sum Agro Update v1)
 		GasLimit:    header.GasLimit,
 		Random:      random,
 	}

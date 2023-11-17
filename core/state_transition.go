@@ -17,6 +17,7 @@
 package core
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -125,17 +126,18 @@ func toWordSize(size uint64) uint64 {
 // A Message contains the data derived from a single transaction that is relevant to state
 // processing.
 type Message struct {
-	To         *common.Address
-	From       common.Address
-	Nonce      uint64
-	Value      *big.Int
-	GasLimit   uint64
-	GasPrice   *big.Int
-	GasFeeCap  *big.Int
-	GasTipCap  *big.Int
-	Data       []byte
-	AccessList types.AccessList
-	BlobHashes []common.Hash
+	To            *common.Address
+	From          common.Address
+	Nonce         uint64
+	Value         *big.Int
+	GasLimit      uint64
+	GasPrice      *big.Int
+	GasFeeCap     *big.Int
+	GasTipCap     *big.Int
+	Data          []byte
+	AccessList    types.AccessList
+	BlobGasFeeCap *big.Int
+	BlobHashes    []common.Hash
 
 	// When SkipAccountChecks is true, the message nonce is not checked against the
 	// account nonce in state. It also disables checking that the sender is an EOA.
@@ -157,6 +159,7 @@ func TransactionToMessage(tx *types.Transaction, s types.Signer, baseFee *big.In
 		AccessList:        tx.AccessList(),
 		SkipAccountChecks: false,
 		BlobHashes:        tx.BlobHashes(),
+		BlobGasFeeCap:     tx.BlobGasFeeCap(),
 	}
 	// If baseFee provided, set gasPrice to effectiveGasPrice.
 	if baseFee != nil {
@@ -230,13 +233,12 @@ func (st *StateTransition) to() common.Address {
 func (st *StateTransition) buyGas() error {
 	mgval := new(big.Int).SetUint64(st.msg.GasLimit)
 	mgval = mgval.Mul(mgval, st.msg.GasPrice)
-	balanceCheck := mgval
+	balanceCheck := new(big.Int).Set(mgval)
 	if st.msg.GasFeeCap != nil {
-		balanceCheck = new(big.Int).SetUint64(st.msg.GasLimit)
+		balanceCheck.SetUint64(st.msg.GasLimit)
 		balanceCheck = balanceCheck.Mul(balanceCheck, st.msg.GasFeeCap)
 		balanceCheck.Add(balanceCheck, st.msg.Value)
 	}
-<<<<<<< HEAD
 	if st.evm.ChainConfig().IsCancun(st.evm.Context.BlockNumber, st.evm.Context.Time) {
 		if blobGas := st.blobGasUsed(); blobGas > 0 {
 			// Check that the user has enough funds to cover blobGasUsed * tx.BlobGasFeeCap
@@ -249,8 +251,6 @@ func (st *StateTransition) buyGas() error {
 			mgval.Add(mgval, blobFee)
 		}
 	}
-=======
->>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	if have, want := st.state.GetBalance(st.msg.From), balanceCheck; have.Cmp(want) < 0 {
 		return fmt.Errorf("%w: address %v have %v want %v", ErrInsufficientFunds, st.msg.From.Hex(), have, want)
 	}
@@ -312,7 +312,6 @@ func (st *StateTransition) preCheck() error {
 			}
 		}
 	}
-<<<<<<< HEAD
 	// Check the blob version validity
 	if msg.BlobHashes != nil {
 		if len(msg.BlobHashes) == 0 {
@@ -340,8 +339,6 @@ func (st *StateTransition) preCheck() error {
 			}
 		}
 	}
-=======
->>>>>>> parent of 69519f4 (Sum Agro Update v1)
 	return st.buyGas()
 }
 
@@ -471,4 +468,9 @@ func (st *StateTransition) refundGas(refundQuotient uint64) {
 // gasUsed returns the amount of gas used up by the state transition.
 func (st *StateTransition) gasUsed() uint64 {
 	return st.initialGas - st.gasRemaining
+}
+
+// blobGasUsed returns the amount of blob gas used by the message.
+func (st *StateTransition) blobGasUsed() uint64 {
+	return uint64(len(st.msg.BlobHashes) * params.BlobTxBlobGasPerBlob)
 }

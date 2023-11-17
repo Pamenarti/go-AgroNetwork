@@ -743,6 +743,8 @@ func (s *Syncer) loadSyncStatus() {
 			}
 			s.tasks = progress.Tasks
 			for _, task := range s.tasks {
+				task := task // closure for task.genBatch in the stacktrie writer callback
+
 				task.genBatch = ethdb.HookedBatch{
 					Batch: s.db.NewBatch(),
 					OnPut: func(key []byte, value []byte) {
@@ -767,6 +769,8 @@ func (s *Syncer) loadSyncStatus() {
 				task.genTrie = trie.NewStackTrie(options)
 				for accountHash, subtasks := range task.SubTasks {
 					for _, subtask := range subtasks {
+						subtask := subtask // closure for subtask.genBatch in the stacktrie writer callback
+
 						subtask.genBatch = ethdb.HookedBatch{
 							Batch: s.db.NewBatch(),
 							OnPut: func(key []byte, value []byte) {

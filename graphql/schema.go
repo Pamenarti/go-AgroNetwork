@@ -157,10 +157,7 @@ const schema string = `
         r: BigInt!
         s: BigInt!
         v: BigInt!
-<<<<<<< HEAD
         yParity: BigInt
-=======
->>>>>>> parent of 69519f4 (Sum Agro Update v1)
         # Envelope transaction support
         type: Long
         accessList: [AccessTuple!]

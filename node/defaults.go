@@ -36,6 +36,13 @@ const (
 	DefaultAuthPort = 8551        // Default port for the authenticated apis
 )
 
+const (
+	// Engine API batch limits: these are not configurable by users, and should cover the
+	// needs of all CLs.
+	engineAPIBatchItemLimit         = 2000
+	engineAPIBatchResponseSizeLimit = 250 * 1000 * 1000
+)
+
 var (
 	DefaultAuthCors    = []string{"localhost"} // Default cors domain for the authenticated apis
 	DefaultAuthVhosts  = []string{"localhost"} // Default virtual hosts for the authenticated apis
@@ -75,17 +82,17 @@ func DefaultDataDir() string {
 	if home != "" {
 		switch runtime.GOOS {
 		case "darwin":
-			return filepath.Join(home, "Library", "AgroNetwork")
+			return filepath.Join(home, "Library", "Ethereum")
 		case "windows":
 			// We used to put everything in %HOME%\AppData\Roaming, but this caused
 			// problems with non-typical setups. If this fallback location exists and
 			// is non-empty, use it, otherwise DTRT and check %LOCALAPPDATA%.
-			fallback := filepath.Join(home, "AppData", "Roaming", "AgroNetwork")
+			fallback := filepath.Join(home, "AppData", "Roaming", "Ethereum")
 			appdata := windowsAppData()
 			if appdata == "" || isNonEmptyDir(fallback) {
 				return fallback
 			}
-			return filepath.Join(appdata, "AgroNetwork")
+			return filepath.Join(appdata, "Ethereum")
 		default:
 			return filepath.Join(home, ".ethereum")
 		}

@@ -145,7 +145,7 @@ func NewChtIndexer(db ethdb.Database, odr OdrBackend, size, confirms uint64, dis
 		diskdb:         db,
 		odr:            odr,
 		trieTable:      trieTable,
-		triedb:         trie.NewDatabaseWithConfig(trieTable, &trie.Config{Cache: 1}), // Use a tiny cache only to keep memory down
+		triedb:         trie.NewDatabase(trieTable, trie.HashDefaults),
 		sectionSize:    size,
 		disablePruning: disablePruning,
 	}
@@ -220,7 +220,7 @@ func (c *ChtIndexerBackend) Commit() error {
 	}
 	// Commit trie changes into trie database in case it's not nil.
 	if nodes != nil {
-		if err := c.triedb.Update(root, c.originRoot, trienode.NewWithNodeSet(nodes), nil); err != nil {
+		if err := c.triedb.Update(root, c.originRoot, 0, trienode.NewWithNodeSet(nodes), nil); err != nil {
 			return err
 		}
 		if err := c.triedb.Commit(root, false); err != nil {
@@ -348,7 +348,7 @@ func NewBloomTrieIndexer(db ethdb.Database, odr OdrBackend, parentSize, size uin
 		diskdb:         db,
 		odr:            odr,
 		trieTable:      trieTable,
-		triedb:         trie.NewDatabaseWithConfig(trieTable, &trie.Config{Cache: 1}), // Use a tiny cache only to keep memory down
+		triedb:         trie.NewDatabase(trieTable, trie.HashDefaults),
 		parentSize:     parentSize,
 		size:           size,
 		disablePruning: disablePruning,
@@ -473,7 +473,7 @@ func (b *BloomTrieIndexerBackend) Commit() error {
 	}
 	// Commit trie changes into trie database in case it's not nil.
 	if nodes != nil {
-		if err := b.triedb.Update(root, b.originRoot, trienode.NewWithNodeSet(nodes), nil); err != nil {
+		if err := b.triedb.Update(root, b.originRoot, 0, trienode.NewWithNodeSet(nodes), nil); err != nil {
 			return err
 		}
 		if err := b.triedb.Commit(root, false); err != nil {
