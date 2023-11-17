@@ -31,31 +31,31 @@ import (
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
-type agrodrpc struct {
+type gethrpc struct {
 	name     string
 	rpc      *rpc.Client
-	agrod     *testagrod
+	agrod     *testgeth
 	nodeInfo *p2p.NodeInfo
 }
 
-func (g *agrodrpc) killAndWait() {
-	g.agrod.Kill()
-	g.agrod.WaitExit()
+func (g *gethrpc) killAndWait() {
+	g.geth.Kill()
+	g.geth.WaitExit()
 }
 
-func (g *agrodrpc) callRPC(result interface{}, method string, args ...interface{}) {
+func (g *gethrpc) callRPC(result interface{}, method string, args ...interface{}) {
 	if err := g.rpc.Call(&result, method, args...); err != nil {
-		g.agrod.Fatalf("callRPC %v: %v", method, err)
+		g.geth.Fatalf("callRPC %v: %v", method, err)
 	}
 }
 
-func (g *agrodrpc) addPeer(peer *agrodrpc) {
-	g.agrod.Logf("%v.addPeer(%v)", g.name, peer.name)
+func (g *gethrpc) addPeer(peer *gethrpc) {
+	g.geth.Logf("%v.addPeer(%v)", g.name, peer.name)
 	enode := peer.getNodeInfo().Enode
 	peerCh := make(chan *p2p.PeerEvent)
 	sub, err := g.rpc.Subscribe(context.Background(), "admin", peerCh, "peerEvents")
 	if err != nil {
-		g.agrod.Fatalf("subscribe %v: %v", g.name, err)
+		g.geth.Fatalf("subscribe %v: %v", g.name, err)
 	}
 	defer sub.Unsubscribe()
 	g.callRPC(nil, "admin_addPeer", enode)
@@ -63,16 +63,16 @@ func (g *agrodrpc) addPeer(peer *agrodrpc) {
 	timeout := time.After(dur)
 	select {
 	case ev := <-peerCh:
-		g.agrod.Logf("%v received event: type=%v, peer=%v", g.name, ev.Type, ev.Peer)
+		g.geth.Logf("%v received event: type=%v, peer=%v", g.name, ev.Type, ev.Peer)
 	case err := <-sub.Err():
-		g.agrod.Fatalf("%v sub error: %v", g.name, err)
+		g.geth.Fatalf("%v sub error: %v", g.name, err)
 	case <-timeout:
-		g.agrod.Error("timeout adding peer after", dur)
+		g.geth.Error("timeout adding peer after", dur)
 	}
 }
 
 // Use this function instead of `g.nodeInfo` directly
-func (g *agrodrpc) getNodeInfo() *p2p.NodeInfo {
+func (g *gethrpc) getNodeInfo() *p2p.NodeInfo {
 	if g.nodeInfo != nil {
 		return g.nodeInfo
 	}
@@ -109,14 +109,14 @@ func ipcEndpoint(ipcPath, datadir string) string {
 // the pipe filename instead of folder.
 var nextIPC atomic.Uint32
 
-func startGethWithIpc(t *testing.T, name string, args ...string) *agrodrpc {
+func startGethWithIpc(t *testing.T, name string, args ...string) *gethrpc {
 	ipcName := fmt.Sprintf("agrod-%d.ipc", nextIPC.Add(1))
 	args = append([]string{"--networkid=42", "--port=0", "--authrpc.port", "0", "--ipcpath", ipcName}, args...)
 	t.Logf("Starting %v with rpc: %v", name, args)
 
-	g := &agrodrpc{
+	g := &gethrpc{
 		name: name,
-		agrod: runGeth(t, args...),
+		geth: runGeth(t, args...),
 	}
 	ipcpath := ipcEndpoint(ipcName, g.agrod.Datadir)
 	// We can't know exactly how long agrod will take to start, so we try 10
@@ -141,7 +141,7 @@ func initGeth(t *testing.T) string {
 	return datadir
 }
 
-func startLightServer(t *testing.T) *agrodrpc {
+func startLightServer(t *testing.T) *gethrpc {
 	datadir := initGeth(t)
 	t.Logf("Importing keys to agrod")
 	runGeth(t, "account", "import", "--datadir", datadir, "--password", "./testdata/password.txt", "--lightkdf", "./testdata/key.prv").WaitExit()
@@ -150,7 +150,7 @@ func startLightServer(t *testing.T) *agrodrpc {
 	return server
 }
 
-func startClient(t *testing.T, name string) *agrodrpc {
+func startClient(t *testing.T, name string) *gethrpc {
 	datadir := initGeth(t)
 	return startGethWithIpc(t, name, "--datadir", datadir, "--discv4=false", "--syncmode=light", "--nat=extip:127.0.0.1", "--verbosity=4")
 }
@@ -185,7 +185,7 @@ func TestPriorityClient(t *testing.T) {
 		t.Errorf("Expected: # of prio peers == 1, actual: %v", len(peers))
 	}
 
-	nodes := map[string]*agrodrpc{
+	nodes := map[string]*gethrpc{
 		lightServer.getNodeInfo().ID: lightServer,
 		freeCli.getNodeInfo().ID:     freeCli,
 		prioCli.getNodeInfo().ID:     prioCli,
