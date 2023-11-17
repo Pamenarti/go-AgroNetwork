@@ -2,16 +2,16 @@
 # with Go source code. If you know what GOPATH is then you probably
 # don't need to bother with make.
 
-.PHONY: geth android ios evm all test clean
+.PHONY: agrod android ios evm all test clean
 
 GOBIN = ./build/bin
 GO ?= latest
 GORUN = go run
 
-geth:
-	$(GORUN) build/ci.go install ./cmd/geth
+agrod:
+	$(GORUN) build/ci.go install ./cmd/agrod
 	@echo "Done building."
-	@echo "Run \"$(GOBIN)/geth\" to launch geth."
+	@echo "Run \"$(GOBIN)/agrod\" to launch agrod."
 
 all:
 	$(GORUN) build/ci.go install
