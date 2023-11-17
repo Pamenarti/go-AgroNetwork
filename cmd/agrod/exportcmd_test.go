@@ -30,8 +30,8 @@ func TestExport(t *testing.T) {
 	outfile := fmt.Sprintf("%v/testExport.out", os.TempDir())
 	defer os.Remove(outfile)
 	agrod := runGeth(t, "--datadir", initGeth(t), "export", outfile)
-	geth.WaitExit()
-	if have, want := geth.ExitStatus(), 0; have != want {
+	agrod.WaitExit()
+	if have, want := agrod.ExitStatus(), 0; have != want {
 		t.Errorf("exit error, have %d want %d", have, want)
 	}
 	have, err := os.ReadFile(outfile)

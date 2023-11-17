@@ -1,18 +1,18 @@
-// Copyright 2016 The go-ethereum Authors
+// Copyright 2016 The go-AgroNetwork Authors
 // This file is part of go-ethereum.
 //
-// go-ethereum is free software: you can redistribute it and/or modify
+// go-AgroNetwork is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// go-ethereum is distributed in the hope that it will be useful,
+// go-AgroNetwork is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with go-ethereum. If not, see <http://www.gnu.org/licenses/>.
+// along with go-AgroNetwork. If not, see <http://www.gnu.org/licenses/>.
 
 package main
 
@@ -31,7 +31,7 @@ import (
 var (
 	walletCommand = &cli.Command{
 		Name:      "wallet",
-		Usage:     "Manage Ethereum presale wallets",
+		Usage:     "Manage AgroNetwork presale wallets",
 		ArgsUsage: "",
 		Description: `
     agrod wallet import /path/to/my/presale.wallet
@@ -43,7 +43,7 @@ passwordfile as argument containing the wallet password in plaintext.`,
 			{
 
 				Name:      "import",
-				Usage:     "Import Ethereum presale wallet",
+				Usage:     "Import AgroNetwork presale wallet",
 				ArgsUsage: "<keyFile>",
 				Action:    importWallet,
 				Flags: []cli.Flag{
@@ -82,7 +82,7 @@ Note that exporting your key in unencrypted format is NOT supported.
 
 Keys are stored under <DATADIR>/keystore.
 It is safe to transfer the entire directory or the individual keys therein
-between ethereum nodes by simply copying.
+between AgroNetwork nodes by simply copying.
 
 Make sure you backup your keys regularly.`,
 		Subcommands: []*cli.Command{
