@@ -86,8 +86,8 @@ func (msg *jsonrpcMessage) isUnsubscribe() bool {
 }
 
 func (msg *jsonrpcMessage) namespace() string {
-	before, _, _ := strings.Cut(msg.Method, serviceMethodSeparator)
-	return before
+	elem := strings.SplitN(msg.Method, serviceMethodSeparator, 2)
+	return elem[0]
 }
 
 func (msg *jsonrpcMessage) String() string {

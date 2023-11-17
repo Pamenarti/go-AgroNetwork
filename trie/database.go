@@ -31,7 +31,6 @@ import (
 // Config defines all necessary options for database.
 type Config struct {
 	Preimages bool           // Flag whether the preimage of node key is recorded
-	IsVerkle  bool           // Flag whether the db is holding a verkle tree
 	HashDB    *hashdb.Config // Configs for hash-based scheme
 	PathDB    *pathdb.Config // Configs for experimental path-based scheme
 }
@@ -318,9 +317,4 @@ func (db *Database) SetBufferSize(size int) error {
 		return errors.New("not supported")
 	}
 	return pdb.SetBufferSize(size)
-}
-
-// IsVerkle returns the indicator if the database is holding a verkle tree.
-func (db *Database) IsVerkle() bool {
-	return db.config.IsVerkle
 }

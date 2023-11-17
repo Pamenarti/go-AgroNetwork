@@ -91,14 +91,14 @@ type ethstatsConfig struct {
 	URL string `toml:",omitempty"`
 }
 
-type agrodConfig struct {
+type gethConfig struct {
 	Eth      ethconfig.Config
 	Node     node.Config
 	Ethstats ethstatsConfig
 	Metrics  metrics.Config
 }
 
-func loadConfig(file string, cfg *agrodConfig) error {
+func loadConfig(file string, cfg *gethConfig) error {
 	f, err := os.Open(file)
 	if err != nil {
 		return err
@@ -126,9 +126,9 @@ func defaultNodeConfig() node.Config {
 
 // loadBaseConfig loads the agrodConfig based on the given command line
 // parameters and config file.
-func loadBaseConfig(ctx *cli.Context) agrodConfig {
+func loadBaseConfig(ctx *cli.Context) gethConfig {
 	// Load defaults.
-	cfg := agrodConfig{
+	cfg := gethConfig{
 		Eth:     ethconfig.Defaults,
 		Node:    defaultNodeConfig(),
 		Metrics: metrics.DefaultConfig,
@@ -147,7 +147,7 @@ func loadBaseConfig(ctx *cli.Context) agrodConfig {
 }
 
 // makeConfigNode loads agrod configuration and creates a blank node instance.
-func makeConfigNode(ctx *cli.Context) (*node.Node, agrodConfig) {
+func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	cfg := loadBaseConfig(ctx)
 	stack, err := node.New(&cfg.Node)
 	if err != nil {
@@ -260,7 +260,7 @@ func dumpConfig(ctx *cli.Context) error {
 	return nil
 }
 
-func applyMetricConfig(ctx *cli.Context, cfg *agrodConfig) {
+func applyMetricConfig(ctx *cli.Context, cfg *gethConfig) {
 	if ctx.IsSet(utils.MetricsEnabledFlag.Name) {
 		cfg.Metrics.Enabled = ctx.Bool(utils.MetricsEnabledFlag.Name)
 	}

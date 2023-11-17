@@ -30,7 +30,6 @@ import (
 )
 
 func TestBuildPayload(t *testing.T) {
-	t.Parallel()
 	var (
 		db        = rawdb.NewMemoryDatabase()
 		recipient = common.HexToAddress("0xdeadbeef")
@@ -83,7 +82,6 @@ func TestBuildPayload(t *testing.T) {
 }
 
 func TestPayloadId(t *testing.T) {
-	t.Parallel()
 	ids := make(map[string]int)
 	for i, tt := range []*BuildPayloadArgs{
 		{

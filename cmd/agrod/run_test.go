@@ -23,8 +23,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/docker/docker/pkg/reexec"
 	"github.com/ethereum/go-ethereum/internal/cmdtest"
-	"github.com/ethereum/go-ethereum/internal/reexec"
 	"github.com/ethereum/go-ethereum/rpc"
 )
 
@@ -37,7 +37,7 @@ type testagrod struct {
 }
 
 func init() {
-	// Run the app if we've been exec'd as "agrod-test" in runGeth.
+	// Run the app if we've been exec'd as "agrod-test" in runagrod.
 	reexec.Register("agrod-test", func() {
 		if err := app.Run(os.Args); err != nil {
 			fmt.Fprintln(os.Stderr, err)

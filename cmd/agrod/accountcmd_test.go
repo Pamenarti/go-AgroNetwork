@@ -1,18 +1,18 @@
-// Copyright 2016 The go-AgroNetwork Authors
-// This file is part of go-AgroNetwork.
+// Copyright 2016 The go-ethereum Authors
+// This file is part of go-ethereum.
 //
-// go-AgroNetwork is free software: you can redistribute it and/or modify
+// go-ethereum is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
 //
-// go-AgroNetwork is distributed in the hope that it will be useful,
+// go-ethereum is distributed in the hope that it will be useful,
 // but WITHOUT ANY WARRANTY; without even the implied warranty of
 // MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with go-AgroNetwork. If not, see <http://www.gnu.org/licenses/>.
+// along with go-ethereum. If not, see <http://www.gnu.org/licenses/>.
 
 package main
 
@@ -44,7 +44,7 @@ func tmpDatadirWithKeystore(t *testing.T) string {
 
 func TestAccountListEmpty(t *testing.T) {
 	agrod := runGeth(t, "account", "list")
-	agrod.ExpectExit()
+	geth.ExpectExit()
 }
 
 func TestAccountList(t *testing.T) {
@@ -63,20 +63,20 @@ Account #2: {289d485d9771714cce91d3393d764e1311907acc} keystore://{{.Datadir}}\k
 	}
 	{
 		agrod := runGeth(t, "account", "list", "--datadir", datadir)
-		agrod.Expect(want)
-		agrod.ExpectExit()
+		geth.Expect(want)
+		geth.ExpectExit()
 	}
 	{
 		agrod := runGeth(t, "--datadir", datadir, "account", "list")
-		agrod.Expect(want)
-		agrod.ExpectExit()
+		geth.Expect(want)
+		geth.ExpectExit()
 	}
 }
 
 func TestAccountNew(t *testing.T) {
 	agrod := runGeth(t, "account", "new", "--lightkdf")
-	defer agrod.ExpectExit()
-	agrod.Expect(`
+	defer geth.ExpectExit()
+	geth.Expect(`
 Your new account is locked with a password. Please give a password. Do not forget this password.
 !! Unsupported terminal, password will be echoed.
 Password: {{.InputLine "foobar"}}
@@ -84,7 +84,7 @@ Repeat password: {{.InputLine "foobar"}}
 
 Your new key was generated
 `)
-	agrod.ExpectRegexp(`
+	geth.ExpectRegexp(`
 Public address of the key:   0x[0-9a-fA-F]{40}
 Path of the secret key file: .*UTC--.+--[0-9a-f]{40}
 
@@ -119,14 +119,14 @@ func TestAccountImport(t *testing.T) {
 
 func TestAccountHelp(t *testing.T) {
 	agrod := runGeth(t, "account", "-h")
-	agrod.WaitExit()
-	if have, want := agrod.ExitStatus(), 0; have != want {
+	geth.WaitExit()
+	if have, want := geth.ExitStatus(), 0; have != want {
 		t.Errorf("exit error, have %d want %d", have, want)
 	}
 
 	agrod = runGeth(t, "account", "import", "-h")
-	agrod.WaitExit()
-	if have, want := agrod.ExitStatus(), 0; have != want {
+	geth.WaitExit()
+	if have, want := geth.ExitStatus(), 0; have != want {
 		t.Errorf("exit error, have %d want %d", have, want)
 	}
 }
@@ -142,14 +142,14 @@ func importAccountWithExpect(t *testing.T, key string, expected string) {
 		t.Error(err)
 	}
 	agrod := runGeth(t, "--lightkdf", "account", "import", "-password", passwordFile, keyfile)
-	defer agrod.ExpectExit()
-	agrod.Expect(expected)
+	defer geth.ExpectExit()
+	geth.Expect(expected)
 }
 
 func TestAccountNewBadRepeat(t *testing.T) {
 	agrod := runGeth(t, "account", "new", "--lightkdf")
-	defer agrod.ExpectExit()
-	agrod.Expect(`
+	defer geth.ExpectExit()
+	geth.Expect(`
 Your new account is locked with a password. Please give a password. Do not forget this password.
 !! Unsupported terminal, password will be echoed.
 Password: {{.InputLine "something"}}
@@ -163,8 +163,8 @@ func TestAccountUpdate(t *testing.T) {
 	agrod := runGeth(t, "account", "update",
 		"--datadir", datadir, "--lightkdf",
 		"f466859ead1932d743d622cb74fc058882e8648a")
-	defer agrod.ExpectExit()
-	agrod.Expect(`
+	defer geth.ExpectExit()
+	geth.Expect(`
 Unlocking account f466859ead1932d743d622cb74fc058882e8648a | Attempt 1/3
 !! Unsupported terminal, password will be echoed.
 Password: {{.InputLine "foobar"}}
@@ -176,14 +176,14 @@ Repeat password: {{.InputLine "foobar2"}}
 
 func TestWalletImport(t *testing.T) {
 	agrod := runGeth(t, "wallet", "import", "--lightkdf", "testdata/guswallet.json")
-	defer agrod.ExpectExit()
-	agrod.Expect(`
+	defer geth.ExpectExit()
+	geth.Expect(`
 !! Unsupported terminal, password will be echoed.
 Password: {{.InputLine "foo"}}
 Address: {d4584b5f6229b7be90727b0fc8c6b91bb427821f}
 `)
 
-	files, err := os.ReadDir(filepath.Join(agrod.Datadir, "keystore"))
+	files, err := os.ReadDir(filepath.Join(geth.Datadir, "keystore"))
 	if len(files) != 1 {
 		t.Errorf("expected one key file in keystore directory, found %d files (error: %v)", len(files), err)
 	}
@@ -191,8 +191,8 @@ Address: {d4584b5f6229b7be90727b0fc8c6b91bb427821f}
 
 func TestWalletImportBadPassword(t *testing.T) {
 	agrod := runGeth(t, "wallet", "import", "--lightkdf", "testdata/guswallet.json")
-	defer agrod.ExpectExit()
-	agrod.Expect(`
+	defer geth.ExpectExit()
+	geth.Expect(`
 !! Unsupported terminal, password will be echoed.
 Password: {{.InputLine "wrong"}}
 Fatal: could not decrypt key with given password
@@ -202,20 +202,20 @@ Fatal: could not decrypt key with given password
 func TestUnlockFlag(t *testing.T) {
 	agrod := runMinimalGeth(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "console", "--exec", "loadScript('testdata/empty.js')")
-	agrod.Expect(`
+	geth.Expect(`
 Unlocking account f466859ead1932d743d622cb74fc058882e8648a | Attempt 1/3
 !! Unsupported terminal, password will be echoed.
 Password: {{.InputLine "foobar"}}
 undefined
 `)
-	agrod.ExpectExit()
+	geth.ExpectExit()
 
 	wantMessages := []string{
 		"Unlocked account",
 		"=0xf466859eAD1932D743d622CB74FC058882E8648A",
 	}
 	for _, m := range wantMessages {
-		if !strings.Contains(agrod.StderrText(), m) {
+		if !strings.Contains(geth.StderrText(), m) {
 			t.Errorf("stderr text does not contain %q", m)
 		}
 	}
@@ -225,8 +225,8 @@ func TestUnlockFlagWrongPassword(t *testing.T) {
 	agrod := runMinimalGeth(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "console", "--exec", "loadScript('testdata/empty.js')")
 
-	defer agrod.ExpectExit()
-	agrod.Expect(`
+	defer geth.ExpectExit()
+	geth.Expect(`
 Unlocking account f466859ead1932d743d622cb74fc058882e8648a | Attempt 1/3
 !! Unsupported terminal, password will be echoed.
 Password: {{.InputLine "wrong1"}}
@@ -238,12 +238,12 @@ Fatal: Failed to unlock account f466859ead1932d743d622cb74fc058882e8648a (could 
 `)
 }
 
-// https://github.com/AgroNetwork/go-AgroNetwork/issues/1785
+// https://github.com/ethereum/go-ethereum/issues/1785
 func TestUnlockFlagMultiIndex(t *testing.T) {
 	agrod := runMinimalGeth(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "--unlock", "0,2", "console", "--exec", "loadScript('testdata/empty.js')")
 
-	agrod.Expect(`
+	geth.Expect(`
 Unlocking account 0 | Attempt 1/3
 !! Unsupported terminal, password will be echoed.
 Password: {{.InputLine "foobar"}}
@@ -251,7 +251,7 @@ Unlocking account 2 | Attempt 1/3
 Password: {{.InputLine "foobar"}}
 undefined
 `)
-	agrod.ExpectExit()
+	geth.ExpectExit()
 
 	wantMessages := []string{
 		"Unlocked account",
@@ -259,7 +259,7 @@ undefined
 		"=0x289d485D9771714CCe91D3393D764E1311907ACc",
 	}
 	for _, m := range wantMessages {
-		if !strings.Contains(agrod.StderrText(), m) {
+		if !strings.Contains(geth.StderrText(), m) {
 			t.Errorf("stderr text does not contain %q", m)
 		}
 	}
@@ -269,10 +269,10 @@ func TestUnlockFlagPasswordFile(t *testing.T) {
 	agrod := runMinimalGeth(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "--password", "testdata/passwords.txt", "--unlock", "0,2", "console", "--exec", "loadScript('testdata/empty.js')")
 
-	agrod.Expect(`
+	geth.Expect(`
 undefined
 `)
-	agrod.ExpectExit()
+	geth.ExpectExit()
 
 	wantMessages := []string{
 		"Unlocked account",
@@ -280,7 +280,7 @@ undefined
 		"=0x289d485D9771714CCe91D3393D764E1311907ACc",
 	}
 	for _, m := range wantMessages {
-		if !strings.Contains(agrod.StderrText(), m) {
+		if !strings.Contains(geth.StderrText(), m) {
 			t.Errorf("stderr text does not contain %q", m)
 		}
 	}
@@ -290,8 +290,8 @@ func TestUnlockFlagPasswordFileWrongPassword(t *testing.T) {
 	agrod := runMinimalGeth(t, "--port", "0", "--ipcdisable", "--datadir", tmpDatadirWithKeystore(t),
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "--password",
 		"testdata/wrong-passwords.txt", "--unlock", "0,2")
-	defer agrod.ExpectExit()
-	agrod.Expect(`
+	defer geth.ExpectExit()
+	geth.Expect(`
 Fatal: Failed to unlock account 0 (could not decrypt key with given password)
 `)
 }
@@ -302,14 +302,14 @@ func TestUnlockFlagAmbiguous(t *testing.T) {
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "--keystore",
 		store, "--unlock", "f466859ead1932d743d622cb74fc058882e8648a",
 		"console", "--exec", "loadScript('testdata/empty.js')")
-	defer agrod.ExpectExit()
+	defer geth.ExpectExit()
 
 	// Helper for the expect template, returns absolute keystore path.
-	agrod.SetTemplateFunc("keypath", func(file string) string {
+	geth.SetTemplateFunc("keypath", func(file string) string {
 		abs, _ := filepath.Abs(filepath.Join(store, file))
 		return abs
 	})
-	agrod.Expect(`
+	geth.Expect(`
 Unlocking account f466859ead1932d743d622cb74fc058882e8648a | Attempt 1/3
 !! Unsupported terminal, password will be echoed.
 Password: {{.InputLine "foobar"}}
@@ -322,14 +322,14 @@ In order to avoid this warning, you need to remove the following duplicate key f
    keystore://{{keypath "2"}}
 undefined
 `)
-	agrod.ExpectExit()
+	geth.ExpectExit()
 
 	wantMessages := []string{
 		"Unlocked account",
 		"=0xf466859eAD1932D743d622CB74FC058882E8648A",
 	}
 	for _, m := range wantMessages {
-		if !strings.Contains(agrod.StderrText(), m) {
+		if !strings.Contains(geth.StderrText(), m) {
 			t.Errorf("stderr text does not contain %q", m)
 		}
 	}
@@ -341,14 +341,14 @@ func TestUnlockFlagAmbiguousWrongPassword(t *testing.T) {
 		"--unlock", "f466859ead1932d743d622cb74fc058882e8648a", "--keystore",
 		store, "--unlock", "f466859ead1932d743d622cb74fc058882e8648a")
 
-	defer agrod.ExpectExit()
+	defer geth.ExpectExit()
 
 	// Helper for the expect template, returns absolute keystore path.
-	agrod.SetTemplateFunc("keypath", func(file string) string {
+	geth.SetTemplateFunc("keypath", func(file string) string {
 		abs, _ := filepath.Abs(filepath.Join(store, file))
 		return abs
 	})
-	agrod.Expect(`
+	geth.Expect(`
 Unlocking account f466859ead1932d743d622cb74fc058882e8648a | Attempt 1/3
 !! Unsupported terminal, password will be echoed.
 Password: {{.InputLine "wrong"}}
@@ -358,5 +358,5 @@ Multiple key files exist for address f466859ead1932d743d622cb74fc058882e8648a:
 Testing your password against all of them...
 Fatal: None of the listed files could be unlocked.
 `)
-	agrod.ExpectExit()
+	geth.ExpectExit()
 }

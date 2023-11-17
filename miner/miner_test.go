@@ -99,7 +99,6 @@ func (bc *testBlockChain) SubscribeChainHeadEvent(ch chan<- core.ChainHeadEvent)
 }
 
 func TestMiner(t *testing.T) {
-	t.Parallel()
 	miner, mux, cleanup := createMiner(t)
 	defer cleanup(false)
 
@@ -129,7 +128,6 @@ func TestMiner(t *testing.T) {
 // An initial FailedEvent should allow mining to stop on a subsequent
 // downloader StartEvent.
 func TestMinerDownloaderFirstFails(t *testing.T) {
-	t.Parallel()
 	miner, mux, cleanup := createMiner(t)
 	defer cleanup(false)
 
@@ -163,7 +161,6 @@ func TestMinerDownloaderFirstFails(t *testing.T) {
 }
 
 func TestMinerStartStopAfterDownloaderEvents(t *testing.T) {
-	t.Parallel()
 	miner, mux, cleanup := createMiner(t)
 	defer cleanup(false)
 
@@ -188,7 +185,6 @@ func TestMinerStartStopAfterDownloaderEvents(t *testing.T) {
 }
 
 func TestStartWhileDownload(t *testing.T) {
-	t.Parallel()
 	miner, mux, cleanup := createMiner(t)
 	defer cleanup(false)
 	waitForMiningState(t, miner, false)
@@ -203,7 +199,6 @@ func TestStartWhileDownload(t *testing.T) {
 }
 
 func TestStartStopMiner(t *testing.T) {
-	t.Parallel()
 	miner, _, cleanup := createMiner(t)
 	defer cleanup(false)
 	waitForMiningState(t, miner, false)
@@ -214,7 +209,6 @@ func TestStartStopMiner(t *testing.T) {
 }
 
 func TestCloseMiner(t *testing.T) {
-	t.Parallel()
 	miner, _, cleanup := createMiner(t)
 	defer cleanup(true)
 	waitForMiningState(t, miner, false)
@@ -228,7 +222,6 @@ func TestCloseMiner(t *testing.T) {
 // TestMinerSetEtherbase checks that etherbase becomes set even if mining isn't
 // possible at the moment
 func TestMinerSetEtherbase(t *testing.T) {
-	t.Parallel()
 	miner, mux, cleanup := createMiner(t)
 	defer cleanup(false)
 	miner.Start()
