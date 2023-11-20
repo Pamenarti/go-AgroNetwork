@@ -120,11 +120,11 @@ func defaultNodeConfig() node.Config {
 	cfg.Version = params.VersionWithCommit(git.Commit, git.Date)
 	cfg.HTTPModules = append(cfg.HTTPModules, "eth")
 	cfg.WSModules = append(cfg.WSModules, "eth")
-	cfg.IPCPath = "geth.ipc"
+	cfg.IPCPath = "agrod.ipc"
 	return cfg
 }
 
-// loadBaseConfig loads the gethConfig based on the given command line
+// loadBaseConfig loads the agrodConfig based on the given command line
 // parameters and config file.
 func loadBaseConfig(ctx *cli.Context) gethConfig {
 	// Load defaults.
@@ -146,7 +146,7 @@ func loadBaseConfig(ctx *cli.Context) gethConfig {
 	return cfg
 }
 
-// makeConfigNode loads geth configuration and creates a blank node instance.
+// makeConfigNode loads agrod configuration and creates a blank node instance.
 func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	cfg := loadBaseConfig(ctx)
 	stack, err := node.New(&cfg.Node)
@@ -167,7 +167,7 @@ func makeConfigNode(ctx *cli.Context) (*node.Node, gethConfig) {
 	return stack, cfg
 }
 
-// makeFullNode loads geth configuration and creates the Ethereum backend.
+// makeFullNode loads agrod configuration and creates the Ethereum backend.
 func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	stack, cfg := makeConfigNode(ctx)
 	if ctx.IsSet(utils.OverrideCancun.Name) {
@@ -180,13 +180,13 @@ func makeFullNode(ctx *cli.Context) (*node.Node, ethapi.Backend) {
 	}
 	backend, eth := utils.RegisterEthService(stack, &cfg.Eth)
 
-	// Create gauge with geth system and build information
+	// Create gauge with agrod system and build information
 	if eth != nil { // The 'eth' backend may be nil in light mode
 		var protos []string
 		for _, p := range eth.Protocols() {
 			protos = append(protos, fmt.Sprintf("%v/%d", p.Name, p.Version))
 		}
-		metrics.NewRegisteredGaugeInfo("geth/info", nil).Update(metrics.GaugeInfoValue{
+		metrics.NewRegisteredGaugeInfo("agrod/info", nil).Update(metrics.GaugeInfoValue{
 			"arch":      runtime.GOARCH,
 			"os":        runtime.GOOS,
 			"version":   cfg.Node.Version,
