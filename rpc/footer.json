@@ -19,7 +19,9 @@
         "url": "http://explorer.agrotest.online/"
       }
     ]
-    "title": "Links",
+  },
+    {
+    "title": "Partners",
     "links": [
       {
         "text": "Agro-Test",
@@ -36,7 +38,7 @@
       {
         "text": "Agro-Test",
         "url": "http://explorer.agrotest.online/"
-
+      }
     ]
   }
 ]
